@@ -237,6 +237,8 @@ export type Recording = {
     note: string;
   };
   steps: StepOutput[];
+  /** What declaring by hand produced for incidents the policy left to a person. */
+  actions: { incidentId: string; incident: Incident; calls: CallLog[] }[];
 };
 
 export type KbPassage = {

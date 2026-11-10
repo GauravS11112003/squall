@@ -50,3 +50,23 @@ export const TRUTH: Record<string, Truth> = {
 
 /** Which true faults an incident manager would call a major incident. */
 export const MAJOR: Record<string, boolean> = { vpn: true, sso: true, printer: false };
+
+/** The invented personal data planted in the storm, to measure whether any of it survives masking. */
+export const PLANTED_PII = [
+  'Dana Whitfield',
+  '512-555-0143',
+  'Lena Kowalczyk',
+  'Priyanka Raman',
+  'priyanka.raman@larkspur.example',
+  'Marcus Oyelaran',
+  '303-555-0178',
+  'Yusuf Adeyemi',
+  '312-555-0116',
+  'Tomasz Brandt',
+];
+
+export const FAULT_NAMES: Record<string, string> = {
+  vpn: 'Harbor VPN gateway outage',
+  sso: 'Keyring push approvals not arriving',
+  printer: 'Denver 3rd-floor printer offline',
+};
