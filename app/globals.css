@@ -1223,7 +1223,8 @@ pre.code mark {
   .shell {
     grid-template-rows: auto minmax(0, 1fr);
   }
-  .readout {
+  .readout,
+  .legend {
     display: none;
   }
   .mark span {

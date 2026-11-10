@@ -301,7 +301,7 @@ function Focus({ target }: { target: THREE.Vector3 }) {
   useFrame((state, dt) => {
     const controls = state.controls as unknown as { target: THREE.Vector3; update: () => void } | null;
     if (!controls) return;
-    goal.set(target.x * 0.7, 1.1, target.z * 0.7);
+    goal.set(target.x * 0.4, 1.1, target.z * 0.4);
     controls.target.lerp(goal, 1 - Math.exp(-dt * 1.6));
   });
   return null;

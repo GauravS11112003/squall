@@ -357,7 +357,12 @@ export default function Console() {
               </div>
             </div>
             <div style={{ display: 'grid', gap: 8, justifyItems: 'end' }}>
-              {mode === 'replay' && recording && (
+              {mode === 'replay' && recording && recording.meta.mode !== 'live' && (
+                <div className="banner bad">
+                  <b>Simulated recording, not Clocked.</b> This file was produced by the offline simulator. None of these numbers are real.
+                </div>
+              )}
+              {mode === 'replay' && recording && recording.meta.mode === 'live' && (
                 <div className="banner">
                   <b>Recorded run.</b> Every probability, quote, timing and credit count here is an unedited Clocked answer, recorded {new Date(recording.meta.recordedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}.
                 </div>
