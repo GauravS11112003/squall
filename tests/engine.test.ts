@@ -1,0 +1,50 @@
+import { describe, expect, it } from 'vitest';
+import { KB } from '../data/kb';
+import { STORM } from '../data/storm';
+import { TRUTH } from '../data/truth';
+import type { Api } from '../lib/api';
+import { step } from '../lib/engine';
+import { runStorm } from '../lib/run';
+import { simApi } from '../lib/sim';
+
+describe('engine on the simulator', () => {
+  it('runs the whole storm, groups the faults and keeps the hostile ticket out', async () => {
+    const run = await runStorm(STORM, simApi(), KB);
+    const byId = Object.fromEntries(run.tickets.map((t) => [t.id, t]));
+    expect(byId['T-1017'].status).toBe('held');
+    expect(byId['T-1017'].incidentId).toBeNull();
+    // every grouped ticket shares an incident only with tickets of the same true fault
+    for (const inc of run.incidents) {
+      const faults = new Set(inc.memberIds.map((id) => TRUTH[id].incident));
+      expect(faults.size).toBe(1);
+    }
+    const vpn = run.incidents.find((i) => i.memberIds.includes('T-1001'))!;
+    expect(vpn.status).toBe('declared');
+    expect(vpn.response?.reply?.passageIds).toEqual(['KB-102']);
+    // the poisoned passage ranked first and was blocked by Inspect
+    const poisoned = vpn.response!.passages.find((p) => p.id === 'KB-110')!;
+    expect(poisoned.blocked).toBe('script');
+    // a follow-up gets the next step, not the same one again
+    expect(byId['T-1034'].sent).toEqual(['KB-102', 'KB-103']);
+    // personal data never reaches the masked text
+    expect(byId['T-1001'].masked).not.toContain('Dana');
+    expect(byId['T-1001'].masked).not.toContain('555-0143');
+  });
+
+  it('fails closed: when Clocked is unreachable nothing is grouped', async () => {
+    const dead: Api = { mode: 'sim', request: async () => { throw Object.assign(new Error('boom'), { status: 503 }); } };
+    const out = await step({ ticket: STORM[0], incidents: [], prior: [] }, dead, KB);
+    expect(out.ticket.status).toBe('unscreened');
+    expect(out.ticket.masked).toBeNull();
+    expect(out.incidents).toHaveLength(0);
+    expect(out.calls[0].ok).toBe(false);
+  });
+
+  it('does not merge when Compare fails', async () => {
+    const sim = simApi();
+    const flaky: Api = { mode: 'sim', request: async (e, b) => { if (e === 'compare') throw new Error('timeout'); return sim.request(e, b); } };
+    const run = await runStorm(STORM.slice(0, 4), flaky, KB);
+    expect(run.incidents).toHaveLength(0);
+    expect(run.tickets.every((t) => t.status === 'alone')).toBe(true);
+  });
+});
