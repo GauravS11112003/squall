@@ -1,28 +1,21 @@
 import type { ReactNode } from 'react';
 import type { Incident, TicketRecord } from './types';
 
-export const TONE_HEX: Record<string, string> = {
-  calm: '#55c7b6',
-  shower: '#ead35c',
-  storm: '#f2903f',
-  squall: '#f2477c',
-  held: '#c9d3d6',
-  mute: '#8aa2aa',
-  good: '#7fd69b',
-};
+/** Colour is state, nothing else: blue watching, amber a person is asked, red major. */
+export type Tone = 'blue' | 'amber' | 'red' | 'orange' | 'green' | 'slate';
 
-export function incidentTone(i: Incident | undefined | null): string {
-  if (!i) return 'mute';
-  if (i.status === 'declared') return 'squall';
-  if (i.status === 'review') return 'shower';
-  if (i.status === 'dismissed') return 'mute';
-  return 'calm';
+export function incidentTone(i: Incident | undefined | null): Tone {
+  if (!i) return 'slate';
+  if (i.status === 'declared') return 'red';
+  if (i.status === 'review') return 'amber';
+  if (i.status === 'dismissed') return 'slate';
+  return 'blue';
 }
 
-export function ticketTone(t: TicketRecord, incidents: Incident[]): string {
-  if (t.status === 'held' || t.status === 'unscreened') return 'held';
+export function ticketTone(t: TicketRecord, incidents: Incident[]): Tone {
+  if (t.status === 'held' || t.status === 'unscreened') return 'red';
   if (t.status === 'joined') return incidentTone(incidents.find((i) => i.id === t.incidentId));
-  return 'mute';
+  return 'slate';
 }
 
 export const STATUS_WORD: Record<string, string> = {
@@ -33,7 +26,7 @@ export const STATUS_WORD: Record<string, string> = {
 };
 
 export const TICKET_WORD: Record<string, string> = {
-  held: 'Held by Guard',
+  held: 'Held',
   unscreened: 'Not read',
   alone: 'On its own',
   joined: 'Grouped',
@@ -56,6 +49,8 @@ export function label(key: string): string {
   const s = key.replace(/_/g, ' ');
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
+
+export const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
 
 export type MarkSpec = { start: number; end: number; cls?: string; title?: string };
 
@@ -94,42 +89,3 @@ export function maskTokens(text: string): MarkSpec[] {
   }
   return out;
 }
-
-export const Icon = {
-  play: (
-    <svg viewBox="0 0 16 16" aria-hidden="true">
-      <path d="M4 2.5v11l9-5.5z" fill="currentColor" />
-    </svg>
-  ),
-  pause: (
-    <svg viewBox="0 0 16 16" aria-hidden="true">
-      <path d="M3.5 2.5h3v11h-3zM9.5 2.5h3v11h-3z" fill="currentColor" />
-    </svg>
-  ),
-  reset: (
-    <svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M2.5 8a5.5 5.5 0 1 0 1.7-4" />
-      <path d="M2.5 2.5v3h3" />
-    </svg>
-  ),
-  check: (
-    <svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 8.5l3.2 3.2L13 4.8" />
-    </svg>
-  ),
-  cross: (
-    <svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-      <path d="M4 4l8 8M12 4l-8 8" />
-    </svg>
-  ),
-  dash: (
-    <svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-      <path d="M3.5 8h9" />
-    </svg>
-  ),
-  back: (
-    <svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9.5 3.5L5 8l4.5 4.5" />
-    </svg>
-  ),
-};

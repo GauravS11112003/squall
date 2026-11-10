@@ -7,7 +7,7 @@ export const metadata: Metadata = {
     'Squall reads incoming service-desk tickets with the Clocked API, groups the ones that report the same fault, and declares the major incident while it is still forming.',
 };
 
-export const viewport: Viewport = { themeColor: '#142733', width: 'device-width', initialScale: 1 };
+export const viewport: Viewport = { themeColor: '#f5f7fa', width: 'device-width', initialScale: 1 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

@@ -1,21 +1,37 @@
 'use client';
 
+import { ChartNoAxesColumn, Play } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { STORM } from '@/data/storm';
+import { costOf } from '@/lib/metrics';
 import { applyStep, priorOf } from '@/lib/run';
 import type { StormState } from '@/lib/run';
 import type { CallLog, Incident, Mode, RawTicket, Recording, StepOutput } from '@/lib/types';
-import { Icon, STATUS_WORD, TONE_HEX, clock, incidentTone, pct } from '@/lib/ui';
-import { CallStrip, Feed, IncidentPane, Scoreboard, TicketPane } from './Panes';
+import { incidentTone, pct } from '@/lib/ui';
+import { Dock } from './Dock';
+import { IncidentCard } from './IncidentCard';
+import { Scoreboard } from './Scoreboard';
+import { Stream } from './Stream';
+import { TicketCard } from './TicketCard';
 
-const Field = dynamic(() => import('./Field'), { ssr: false });
+const Stage = dynamic(() => import('./Stage'), { ssr: false });
 
 type Selection = { kind: 'incident' | 'ticket'; id: string } | null;
 type Status = { live: boolean; sim: boolean; needsCode: boolean };
 
 const EMPTY: StormState = { tickets: [], incidents: [], calls: [] };
 const sleep = (n: number) => new Promise((r) => setTimeout(r, n));
+
+function Logo() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 3a9 9 0 1 0 9 9" stroke="#0a0f1c" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M12 7.5a4.5 4.5 0 1 0 4.5 4.5" stroke="#2563ff" strokeWidth="2.2" strokeLinecap="round" />
+      <circle cx="12" cy="12" r="1.4" fill="#0a0f1c" />
+    </svg>
+  );
+}
 
 export default function Console() {
   const [status, setStatus] = useState<Status | null>(null);
@@ -33,8 +49,9 @@ export default function Console() {
   const [sent, setSent] = useState<Record<string, { at: number; to: number }>>({});
   const [board, setBoard] = useState(false);
   const [still, setStill] = useState(false);
+  const [flash, setFlash] = useState(0);
 
-  // The run loop reads the latest values through refs so it never works from a stale render.
+  // The run loop reads the latest values through a ref, so it never works from a stale render.
   const ref = useRef({ state, cursor, running: false, speed, mode, code, token: 0 });
   ref.current.speed = speed;
   ref.current.mode = mode;
@@ -69,12 +86,14 @@ export default function Console() {
     return h;
   }, []);
 
-  /** Auto-follow: bring an incident into view when it first needs attention. */
+  /** Bring an incident into view when it first forms or first needs attention. */
   const follow = useCallback((before: Incident[], after: Incident[]) => {
     for (const inc of after) {
       const was = before.find((i) => i.id === inc.id);
-      if (!was || (was.status !== inc.status && (inc.status === 'declared' || inc.status === 'review'))) {
-        setSelected((cur) => (cur?.kind === 'ticket' && was ? cur : { kind: 'incident', id: inc.id }));
+      const escalated = was && was.status !== inc.status && (inc.status === 'declared' || inc.status === 'review');
+      if (escalated && inc.status === 'declared') setFlash((n) => n + 1);
+      if (!was || escalated) {
+        setSelected((cur) => (cur?.kind === 'ticket' && !escalated ? cur : { kind: 'incident', id: inc.id }));
         return;
       }
     }
@@ -120,8 +139,7 @@ export default function Console() {
     setError(null);
     while (ref.current.running && ref.current.token === token) {
       const i = ref.current.cursor;
-      const m = ref.current.mode;
-      const steps = m === 'replay' ? recording?.steps ?? [] : null;
+      const steps = ref.current.mode === 'replay' ? recording?.steps ?? [] : null;
       const total = steps ? steps.length : STORM.length;
       if (i >= total) {
         setBoard(true);
@@ -130,16 +148,16 @@ export default function Console() {
       if (steps) {
         const out = steps[i];
         setPending(out.ticket);
-        await sleep(Math.max(180, 620 / ref.current.speed));
+        await sleep(Math.max(200, 760 / ref.current.speed));
         if (ref.current.token !== token) return;
         setPending(null);
         absorb(out);
-        await sleep(Math.max(120, 520 / ref.current.speed));
+        await sleep(Math.max(140, 640 / ref.current.speed));
       } else {
         const ok = await liveStep(STORM[i]);
         if (ref.current.token !== token) return;
         if (!ok) break;
-        await sleep(Math.max(60, 320 / ref.current.speed));
+        await sleep(Math.max(60, 380 / ref.current.speed));
       }
       if (ref.current.token !== token) return;
       ref.current.cursor = i + 1;
@@ -177,8 +195,9 @@ export default function Console() {
 
   const file = useCallback(
     async (text: string) => {
-      const last = ref.current.state.tickets[ref.current.state.tickets.length - 1];
-      const n = ref.current.state.tickets.filter((t) => t.id.startsWith('T-9')).length + 1;
+      const s = ref.current.state;
+      const last = s.tickets[s.tickets.length - 1];
+      const n = s.tickets.filter((t) => t.id.startsWith('T-9')).length + 1;
       setBusy('file');
       const ticket: RawTicket = { id: `T-9${String(n).padStart(3, '0')}`, at: (last?.at ?? 0) + 5, from: 'Filed by you', channel: 'portal', text };
       const ok = await liveStep(ticket);
@@ -201,13 +220,14 @@ export default function Console() {
     [commit],
   );
 
-  const now = state.tickets.length ? state.tickets[state.tickets.length - 1].at : 0;
+  const now = pending?.at ?? (state.tickets.length ? state.tickets[state.tickets.length - 1].at : 0);
 
   const declare = useCallback(
     async (inc: Incident) => {
       const saved = ref.current.mode === 'replay' ? recording?.actions?.find((a) => a.incidentId === inc.id) : null;
       if (saved) {
         replaceIncident({ ...saved.incident, declaredAt: now }, saved.calls);
+        setFlash((n) => n + 1);
         return;
       }
       setBusy('declare');
@@ -218,6 +238,7 @@ export default function Console() {
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error ?? `The server answered ${res.status}.`);
         replaceIncident(data.incident, data.calls);
+        setFlash((n) => n + 1);
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -246,7 +267,7 @@ export default function Console() {
           body: JSON.stringify({ draft, members, passageIds: inc.response?.reply?.passageIds ?? [], incidentId: inc.id, at: now }),
         });
         const data = await res.json();
-        if (!res.ok) return data?.error ?? 'Verify did not answer. The edited draft is unchecked and cannot be sent.';
+        if (!res.ok) return data?.error ?? 'Verify did not answer. The edited update is unchecked and cannot be sent.';
         replaceIncident({ ...inc, response: { ...inc.response!, verification: data.verification, error: null } }, data.calls);
         setSent((x) => {
           const { [inc.id]: _, ...rest } = x;
@@ -254,7 +275,7 @@ export default function Console() {
         });
         return null;
       } catch {
-        return 'The server could not be reached. The edited draft is unchecked and cannot be sent.';
+        return 'The server could not be reached. The edited update is unchecked and cannot be sent.';
       } finally {
         setBusy(null);
       }
@@ -262,37 +283,68 @@ export default function Console() {
     [headers, now, replaceIncident],
   );
 
-  const total = mode === 'replay' ? recording?.steps.length ?? 0 : STORM.length;
-  const done = total > 0 && cursor >= total;
+  const plan: RawTicket[] = useMemo(() => (mode === 'replay' && recording ? recording.steps.map((s) => s.ticket) : STORM), [mode, recording]);
+  const done = plan.length > 0 && cursor >= plan.length;
   const incident = selected?.kind === 'incident' ? state.incidents.find((i) => i.id === selected.id) : undefined;
   const ticket = selected?.kind === 'ticket' ? state.tickets.find((t) => t.id === selected.id) : undefined;
   const liveReady = Boolean(status?.live && (!status.needsCode || code.trim()));
   const canLive = mode === 'live' ? liveReady : mode === 'sim';
+  const canRun = Boolean(mode) && (mode !== 'live' || liveReady);
   const started = state.tickets.length > 0 || pending !== null;
+  const simulated = mode === 'sim' || (mode === 'replay' && recording?.meta.mode !== 'live');
+  const cost = useMemo(() => costOf(state.calls), [state.calls]);
   const modes = useMemo(() => {
-    const list: { id: Mode; word: string; ok: boolean }[] = [];
-    if (status?.live) list.push({ id: 'live', word: 'Live', ok: true });
-    if (recording) list.push({ id: 'replay', word: 'Recorded run', ok: true });
-    if (status?.sim) list.push({ id: 'sim', word: 'Simulator', ok: true });
+    const list: { id: Mode; word: string }[] = [];
+    if (status?.live) list.push({ id: 'live', word: 'Live' });
+    if (recording) list.push({ id: 'replay', word: 'Recorded' });
+    if (status?.sim) list.push({ id: 'sim', word: 'Simulator' });
     return list;
   }, [status, recording]);
+  const source = simulated
+    ? { tone: 'red', word: 'Simulator, not Clocked', title: 'Keyword rules stand in for the API so the app can be developed without a key. None of these numbers are real.' }
+    : mode === 'replay' && recording
+      ? { tone: 'blue', word: `Recorded live run, ${new Date(recording.meta.recordedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`, title: 'Every probability, quote, timing and credit count is an unedited Clocked API answer.' }
+      : mode === 'live'
+        ? { tone: 'green', word: 'Live on the Clocked API', title: 'Every ticket is read by Clocked as you watch.' }
+        : null;
 
   return (
-    <div className="shell">
-      <header className="bar">
-        <div className="mark">
-          <b>Squall</b>
-          <span>sees the outage in the tickets</span>
+    <>
+      <div className="stage">
+        <Stage tickets={state.tickets} pending={pending} incidents={state.incidents} selected={selected} onSelect={setSelected} still={still} idle={!started} />
+        <div key={flash} className={`stage-flash ${flash ? 'on' : ''}`} />
+      </div>
+
+      <header className="top">
+        <div className="brand">
+          <Logo />
+          Squall
         </div>
-        <div className="grow" />
-        <div className="readout" aria-live="off">
-          <span className="clock" title="Time inside the storm">
-            {clock(pending?.at ?? now)}
+        {source && (
+          <span className={`pill t-${source.tone} hide-s`} title={source.title}>
+            <span className="live" />
+            {source.word}
           </span>
-          <span className="wide">
-            <b>{state.incidents.filter((i) => i.status === 'declared').length}</b> major, <b>{state.incidents.filter((i) => i.status === 'review').length}</b> awaiting you
+        )}
+        <div className="spacer" />
+        {started && (
+          <span className="pill hide-s" title="Summed from the X-Clocked headers on every call">
+            <b>{cost.calls}</b> calls
+            <i />
+            <b>{cost.medianModelMs === null ? '–' : Math.round(cost.medianModelMs)} ms</b> median
+            {!simulated && (
+              <>
+                <i />
+                <b>{cost.credits.toLocaleString()}</b> credits
+              </>
+            )}
           </span>
-        </div>
+        )}
+        {done && (
+          <button className="pill" type="button" onClick={() => setBoard(true)}>
+            <ChartNoAxesColumn size={15} /> <b>Score</b>
+          </button>
+        )}
         {modes.length > 1 && (
           <div className="seg" role="group" aria-label="Where the answers come from">
             {modes.map((m) => (
@@ -302,191 +354,117 @@ export default function Console() {
             ))}
           </div>
         )}
-        <div className="seg" role="group" aria-label="Speed">
-          {[1, 2, 4].map((s) => (
-            <button key={s} type="button" aria-pressed={speed === s} onClick={() => setSpeed(s)}>
-              {s}×
-            </button>
-          ))}
-        </div>
-        {running ? (
-          <button className="btn" type="button" onClick={pause}>
-            {Icon.pause} Pause
-          </button>
-        ) : (
-          <button className="btn primary" type="button" onClick={run} disabled={!mode || done || (mode === 'live' && !liveReady)}>
-            {Icon.play} {started ? (done ? 'Storm finished' : 'Resume') : 'Start the storm'}
-          </button>
-        )}
-        <button className="btn quiet" type="button" onClick={() => reset()} disabled={!started} aria-label="Reset the storm">
-          {Icon.reset}
-        </button>
       </header>
 
-      <main className="main">
-        <Feed
-          tickets={state.tickets}
-          pending={pending}
-          incidents={state.incidents}
-          selectedId={ticket?.id ?? null}
-          onSelect={setSelected}
-          canFile={canLive}
-          busy={busy !== null || running}
-          onFile={file}
-          total={total}
-        />
-
-        <section className="centre" aria-label="Storm field">
-          <div className="field-wrap">
-            <Field tickets={state.tickets} pending={pending} incidents={state.incidents} selected={selected} onSelect={setSelected} still={still} raining={running || pending !== null} />
-          </div>
-
-          <div className="overlay-top">
-            <div className="legend" aria-label="What the colours mean">
-              <div>
-                <span className="dot" style={{ background: TONE_HEX.calm }} /> Watching
-              </div>
-              <div>
-                <span className="dot" style={{ background: TONE_HEX.shower }} /> Needs your call
-              </div>
-              <div>
-                <span className="dot" style={{ background: TONE_HEX.squall }} /> Major incident
-              </div>
-              <div>
-                <span className="dot" style={{ background: TONE_HEX.mute }} /> On its own
-              </div>
+      <div className={`intro ${started ? 'gone' : ''}`} aria-hidden={started}>
+        <h1 className="rise">See the outage in the tickets.</h1>
+        {mode ? (
+          <>
+            <p className="rise d1">
+              When a service fails, people report it in dozens of different ways. Squall reads every ticket as it lands, groups the ones that mean the same thing, and raises the major incident while it is still forming.
+            </p>
+            <div className="go rise d2">
+              <button className="btn ink big" type="button" onClick={run} disabled={!canRun} tabIndex={started ? -1 : 0}>
+                <Play size={17} fill="currentColor" /> Start the storm
+              </button>
+              <small>
+                {mode === 'live'
+                  ? `${STORM.length} synthetic tickets, read live by the Clocked API. About 3,000 credits.`
+                  : mode === 'replay'
+                    ? `${plan.length} synthetic tickets, replayed from a live Clocked run.`
+                    : `${STORM.length} synthetic tickets, answered by the offline simulator.`}
+              </small>
             </div>
-            <div style={{ display: 'grid', gap: 8, justifyItems: 'end' }}>
-              {mode === 'replay' && recording && recording.meta.mode !== 'live' && (
-                <div className="banner bad">
-                  <b>Simulated recording, not Clocked.</b> This file was produced by the offline simulator. None of these numbers are real.
-                </div>
-              )}
-              {mode === 'replay' && recording && recording.meta.mode === 'live' && (
-                <div className="banner">
-                  <b>Recorded run.</b> Every probability, quote, timing and credit count here is an unedited Clocked answer, recorded {new Date(recording.meta.recordedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}.
-                </div>
-              )}
-              {mode === 'sim' && (
-                <div className="banner bad">
-                  <b>Offline simulator, not Clocked.</b> Keyword rules stand in for the API so the app can be developed without a key. None of these numbers are real.
-                </div>
-              )}
-              {mode === 'live' && status?.needsCode && (
-                <div className="banner field">
-                  <label htmlFor="code">
-                    <b>Live mode spends Clocked credits,</b> so this deployment asks for an access code.
-                  </label>
-                  <input id="code" type="password" value={code} onChange={(e) => setCode(e.target.value)} placeholder="Access code" style={{ marginTop: 8 }} autoComplete="off" />
-                </div>
-              )}
-              {error && (
-                <div className="banner bad" role="alert">
-                  <b>The storm stopped.</b> {error} Nothing was grouped on a guess. Press Resume to retry this ticket.
-                </div>
-              )}
-              {done && !board && (
-                <button className="btn" type="button" onClick={() => setBoard(true)}>
-                  See how the run scored
+          </>
+        ) : status ? (
+          <p className="rise d1">
+            This server has no Clocked key and no recorded run yet. Copy <code>.env.local.example</code> to <code>.env.local</code>, add your <code>CLOCKED_API_KEY</code>, and restart <code>npm run dev</code>.
+          </p>
+        ) : null}
+      </div>
+
+      {mode === 'live' && status?.needsCode && !started && (
+        <div className="notice glass">
+          <label htmlFor="code">
+            <b>Live mode spends Clocked credits,</b> so this site asks for an access code.
+          </label>
+          <input id="code" type="password" value={code} onChange={(e) => setCode(e.target.value)} placeholder="Access code" autoComplete="off" />
+        </div>
+      )}
+      {error && (
+        <div className="notice glass bad" role="alert">
+          <b>The storm stopped.</b> {error} Nothing was grouped on a guess. Press play to retry this ticket.
+        </div>
+      )}
+
+      <Stream
+        tickets={state.tickets}
+        pending={pending}
+        incidents={state.incidents}
+        selectedId={ticket?.id ?? null}
+        onSelect={setSelected}
+        total={plan.length}
+        canFile={canLive}
+        busy={busy !== null || running}
+        onFile={file}
+        away={!started}
+      />
+
+      <section className={`card glass ${incident || ticket ? '' : 'away'}`} aria-label="Detail">
+        {state.incidents.length > 1 && !ticket && (
+          <div className="switch" role="tablist" aria-label="Incidents">
+            {state.incidents.map((i) => {
+              const last = i.decisions[i.decisions.length - 1];
+              return (
+                <button key={i.id} role="tab" type="button" className={`t-${incidentTone(i)}`} aria-selected={incident?.id === i.id} onClick={() => setSelected({ kind: 'incident', id: i.id })}>
+                  <span className="dot" />
+                  {i.services[0] ?? i.id}
+                  <span style={{ color: 'var(--ink-3)', fontWeight: 500 }}>{last ? pct(last.pMajor) : i.memberIds.length}</span>
                 </button>
-              )}
-            </div>
+              );
+            })}
           </div>
+        )}
+        {ticket ? (
+          <TicketCard ticket={ticket} incidents={state.incidents} calls={state.calls} onSelect={setSelected} />
+        ) : incident ? (
+          <IncidentCard
+            key={incident.id}
+            incident={incident}
+            tickets={state.tickets}
+            mode={mode ?? 'replay'}
+            busy={busy}
+            canAct={canLive || Boolean(mode === 'replay' && recording?.actions?.some((a) => a.incidentId === incident.id))}
+            canEdit={canLive}
+            sent={sent[incident.id] ?? null}
+            onSelect={setSelected}
+            onDeclare={() => declare(incident)}
+            onDismiss={() => dismiss(incident)}
+            onVerify={(d) => verify(incident, d)}
+            onSend={() => setSent((x) => ({ ...x, [incident.id]: { at: now, to: incident.memberIds.length } }))}
+          />
+        ) : null}
+      </section>
 
-          {!started && (
-            <div className="start">
-              <div className="start-card">
-                <h1>Forty people are about to report the same outage in forty different ways.</h1>
-                {mode ? (
-                  <>
-                    <p>
-                      Squall reads each ticket as it lands, groups the ones that describe the same fault, and raises the major incident while it is still forming. Every judgement comes from the Clocked API, with its probability and the words it rests on.
-                    </p>
-                    <div className="actions">
-                      <button className="btn primary" type="button" onClick={run} disabled={mode === 'live' && !liveReady}>
-                        {Icon.play} Start the storm
-                      </button>
-                      <span style={{ color: 'var(--chalk-3)', fontSize: 13 }}>
-                        {mode === 'live' ? `${STORM.length} synthetic tickets, read live. Uses roughly 3,000 credits.` : mode === 'replay' ? `${total} synthetic tickets, replayed from a live run.` : 'Simulated answers.'}
-                      </span>
-                    </div>
-                  </>
-                ) : status ? (
-                  <p>
-                    This server has no Clocked key and no recorded run yet. Copy <code>.env.local.example</code> to <code>.env.local</code>, add your <code>CLOCKED_API_KEY</code> and restart <code>npm run dev</code>.
-                  </p>
-                ) : (
-                  <p>Checking what this server can do.</p>
-                )}
-              </div>
-            </div>
-          )}
+      <Dock
+        plan={plan}
+        tickets={state.tickets}
+        incidents={state.incidents}
+        now={now}
+        running={running}
+        done={done}
+        canRun={canRun}
+        speed={speed}
+        selectedId={ticket?.id ?? null}
+        onPlay={run}
+        onPause={pause}
+        onReset={() => reset()}
+        onSpeed={setSpeed}
+        onSelect={setSelected}
+        away={!started}
+      />
 
-          {board && mode && <Scoreboard tickets={state.tickets} incidents={state.incidents} calls={state.calls} mode={mode} onClose={() => setBoard(false)} />}
-          <CallStrip calls={state.calls} mode={mode} />
-        </section>
-
-        <section className="pane right" aria-label="Incident detail">
-          {state.incidents.length > 0 && (
-            <>
-              <div className="pane-head">
-                <h2>Incidents</h2>
-                <small>{state.incidents.length} forming or open</small>
-              </div>
-              <div className="tabs" role="tablist">
-                {state.incidents.map((i) => {
-                  const tone = incidentTone(i);
-                  const last = i.decisions[i.decisions.length - 1];
-                  return (
-                    <button
-                      key={i.id}
-                      role="tab"
-                      type="button"
-                      className={`tab tone-${tone}`}
-                      aria-selected={incident?.id === i.id}
-                      onClick={() => setSelected({ kind: 'incident', id: i.id })}
-                    >
-                      <b>
-                        <span className="dot" /> {i.id}
-                        <span style={{ marginLeft: 'auto', color: 'var(--chalk-2)' }}>{last ? pct(last.pMajor) : `${i.memberIds.length}`}</span>
-                      </b>
-                      <span>{i.status === 'watching' ? i.title : STATUS_WORD[i.status]}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          )}
-          <div className="scroll">
-            {ticket ? (
-              <TicketPane ticket={ticket} incidents={state.incidents} calls={state.calls} onSelect={setSelected} />
-            ) : incident ? (
-              <IncidentPane
-                key={incident.id}
-                incident={incident}
-                tickets={state.tickets}
-                mode={mode ?? 'replay'}
-                busy={busy}
-                canAct={canLive || Boolean(mode === 'replay' && recording?.actions?.some((a) => a.incidentId === incident.id))}
-                sent={sent[incident.id] ?? null}
-                onSelect={setSelected}
-                onDeclare={() => declare(incident)}
-                onDismiss={() => dismiss(incident)}
-                onVerify={(d) => verify(incident, d)}
-                onSend={() => setSent((x) => ({ ...x, [incident.id]: { at: now, to: incident.memberIds.length } }))}
-              />
-            ) : (
-              <div className="empty">
-                <b>Nothing has formed yet</b>
-                <span>
-                  When two tickets report the same fault they become a cell in the field and an incident here. From {3} reports Squall asks Clocked how likely it is to be a major incident.
-                </span>
-                <span>Select any drop in the field or any ticket on the left to see exactly what Clocked read and decided.</span>
-              </div>
-            )}
-          </div>
-        </section>
-      </main>
-    </div>
+      {board && mode && <Scoreboard tickets={state.tickets} incidents={state.incidents} calls={state.calls} mode={mode} simulated={simulated} onClose={() => setBoard(false)} />}
+    </>
   );
 }

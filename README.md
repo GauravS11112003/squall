@@ -120,8 +120,8 @@ The comparison is the rule many desks run today: bucket tickets by keyword and r
 
 ```
 app/                 Next.js app: the console and four server routes (step, declare, verify, status)
-components/Field.tsx The 3D pressure field (React Three Fiber)
-components/Panes.tsx Ticket feed, incident and ticket detail, scoreboard
+components/Stage.tsx The 3D storm: shader hurricanes, ticket dots, merge arcs (React Three Fiber)
+components/          Console (state and run loop), Stream, IncidentCard, TicketCard, Dock, Scoreboard
 lib/engine.ts        One ticket through every step; the response flow; all failure handling
 lib/policy.ts        Every threshold and every instruction sent to Clocked
 lib/api.ts           The single seam to Clocked (official clocked-sdk)
@@ -133,9 +133,11 @@ eval/results.json    Output of the last live evaluation
 public/recordings/   The recorded live run the public demo replays
 ```
 
-### The field
+### The stage
 
-Each ticket is a drop that falls in while Clocked reads it. Drops that Compare reads as the same fault orbit together as a cell. The tube at a cell's centre is a barometer: the glass is probability 1, the fill is Decide's latest reading, and the two rings are the policy lines (ask a person, declare). A white arc flashes between two drops when Compare merges them; an orange line stays between two reports that disagree. Held tickets sit in a dashed pen at the edge. Everything in the field is also in the lists beside it, and motion is switched off for people who ask their system for reduced motion.
+The storm is the whole screen. Each incident is a hurricane drawn from sixteen thousand particles in a vertex shader. It grows with every report Compare merges into it, spins faster as Decide's probability rises, and turns from blue (watching) to amber (a person is asked) to red (major). The ink dots riding inside it are the real tickets; select one to see what each endpoint read. The ring on the floor is the probability, with a notch at each policy line. An arc flashes between two tickets when Compare merges them, and an orange line stays between two reports that disagree. Held tickets sit in a dashed red pen.
+
+Three glass panels float over the stage: the ticket stream, one focused card (an incident's single number and single action, with the reasoning behind three tabs), and a timeline with one tick per ticket. Everything on the stage is also in those panels, and motion is switched off for people who ask their system for reduced motion.
 
 ## Deploying a public demo
 
@@ -150,8 +152,9 @@ Deploy to any Node host (Vercel works with no configuration). Without a key the 
 ## Credits
 
 - [Clocked](https://clocked.rezolve.ai) by Rezolve.ai, through the official [`clocked-sdk`](https://www.npmjs.com/package/clocked-sdk) (MIT), supplies every model judgement.
-- [Next.js](https://nextjs.org), [React](https://react.dev), [three.js](https://threejs.org), [React Three Fiber](https://github.com/pmndrs/react-three-fiber), [drei](https://github.com/pmndrs/drei) and [postprocessing](https://github.com/pmndrs/postprocessing) (all MIT).
-- Typefaces: [Bricolage Grotesque](https://github.com/ateliertriay/bricolage) and [Instrument Sans](https://github.com/Instrument/instrument-sans) (SIL Open Font License), via Fontsource.
+- [Next.js](https://nextjs.org), [React](https://react.dev), [three.js](https://threejs.org), [React Three Fiber](https://github.com/pmndrs/react-three-fiber), [drei](https://github.com/pmndrs/drei) (all MIT) and [Lucide](https://lucide.dev) icons (ISC).
+- Typefaces: [Geist and Geist Mono](https://github.com/vercel/geist-font) (SIL Open Font License), via Fontsource.
+- Design guidance drawn from three open skills: [impeccable](https://github.com/pbakaus/impeccable), [taste-skill](https://github.com/Leonxlnx/taste-skill) and [ui-ux-pro-max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill).
 - Started and built during the challenge window with an AI coding assistant (Claude), as the rules allow. The commit history shows what was built and when.
 
 MIT licensed.
