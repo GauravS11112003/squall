@@ -43,7 +43,11 @@ function cellCentre(index: number): THREE.Vector3 {
 
 const cellRadius = (n: number) => 0.55 + 0.19 * Math.sqrt(Math.max(1, n));
 
+/** Where every drop currently is, so links between drops can follow them. */
+type Registry = Map<string, THREE.Vector3>;
+
 type DropProps = {
+  registry: Registry;
   id: string;
   tone: string;
   kind: 'pending' | 'alone' | 'held' | 'joined';
@@ -55,7 +59,7 @@ type DropProps = {
   onSelect: () => void;
 };
 
-function Drop({ id, tone, kind, centre, slot, selected, still, conflict, onSelect }: DropProps) {
+function Drop({ registry, id, tone, kind, centre, slot, selected, still, conflict, onSelect }: DropProps) {
   const ref = useRef<THREE.Group>(null);
   const [hover, setHover] = useState(false);
   const seed = useMemo(() => hash(id), [id]);
@@ -90,6 +94,7 @@ function Drop({ id, tone, kind, centre, slot, selected, still, conflict, onSelec
     }
     const k = still ? 1 : 1 - Math.exp(-dt * (kind === 'pending' ? 2.2 : 3.2));
     g.position.lerp(target, k);
+    registry.set(id, g.position);
     const s = (selected ? 1.9 : hover ? 1.6 : 1) * (kind === 'pending' ? 0.85 : 1);
     g.scale.lerp(new THREE.Vector3(s, s, s), 0.2);
   });
@@ -225,6 +230,83 @@ function Cell({ incident, index, selected, still, onSelect }: { incident: Incide
   );
 }
 
+
+type LinkSpec = { key: string; a: string; b: string; color: string; lasting: boolean };
+
+/** A line between two drops: a flash when Compare merges them, a standing line when they disagree. */
+function Link({ registry, spec, still }: { registry: Registry; spec: LinkSpec; still: boolean }) {
+  const born = useRef<number | null>(null);
+  const line = useMemo(() => {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(24 * 3), 3));
+    const material = new THREE.LineBasicMaterial({ color: spec.color, transparent: true, opacity: 0, toneMapped: false, depthWrite: false });
+    return new THREE.Line(geometry, material);
+  }, [spec.color]);
+  useFrame((state) => {
+    const a = registry.get(spec.a);
+    const b = registry.get(spec.b);
+    const m = line.material as THREE.LineBasicMaterial;
+    if (!a || !b) {
+      m.opacity = 0;
+      return;
+    }
+    if (born.current === null) born.current = state.clock.elapsedTime;
+    const age = state.clock.elapsedTime - born.current;
+    m.opacity = spec.lasting ? 0.75 : still ? 0 : Math.max(0, 0.95 - age / 2.6);
+    if (m.opacity <= 0) return;
+    const pos = line.geometry.getAttribute('position') as THREE.BufferAttribute;
+    const lift = 0.35 + a.distanceTo(b) * 0.22;
+    for (let i = 0; i < 24; i++) {
+      const t = i / 23;
+      pos.setXYZ(i, a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t + Math.sin(t * Math.PI) * lift, a.z + (b.z - a.z) * t);
+    }
+    pos.needsUpdate = true;
+  });
+  return <primitive object={line} />;
+}
+
+/** Light rain over the field while tickets are arriving: the storm is on. */
+function Rain({ on, still }: { on: boolean; still: boolean }) {
+  const count = 260;
+  const points = useMemo(() => {
+    const geometry = new THREE.BufferGeometry();
+    const arr = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      arr[i * 3] = (hash(`x${i}`) - 0.5) * 20;
+      arr[i * 3 + 1] = hash(`y${i}`) * 9;
+      arr[i * 3 + 2] = (hash(`z${i}`) - 0.5) * 16;
+    }
+    geometry.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+    const material = new THREE.PointsMaterial({ color: '#b4c6cb', size: 0.035, transparent: true, opacity: 0, depthWrite: false, sizeAttenuation: true });
+    return new THREE.Points(geometry, material);
+  }, []);
+  useFrame((_, dt) => {
+    const m = points.material as THREE.PointsMaterial;
+    m.opacity += ((on && !still ? 0.5 : 0) - m.opacity) * Math.min(1, dt * 2);
+    if (m.opacity < 0.01) return;
+    const pos = points.geometry.getAttribute('position') as THREE.BufferAttribute;
+    for (let i = 0; i < count; i++) {
+      let y = pos.getY(i) - dt * (3.2 + (i % 7) * 0.35);
+      if (y < 0) y += 9;
+      pos.setY(i, y);
+    }
+    pos.needsUpdate = true;
+  });
+  return <primitive object={points} />;
+}
+
+/** Eases the orbit target toward the selected incident, so declaring one brings it to the middle. */
+function Focus({ target }: { target: THREE.Vector3 }) {
+  const goal = useMemo(() => new THREE.Vector3(), []);
+  useFrame((state, dt) => {
+    const controls = state.controls as unknown as { target: THREE.Vector3; update: () => void } | null;
+    if (!controls) return;
+    goal.set(target.x * 0.7, 1.1, target.z * 0.7);
+    controls.target.lerp(goal, 1 - Math.exp(-dt * 1.6));
+  });
+  return null;
+}
+
 function Ground() {
   const rings = useMemo(
     () =>
@@ -282,9 +364,24 @@ export type FieldProps = {
   selected: { kind: 'incident' | 'ticket'; id: string } | null;
   onSelect: (s: { kind: 'incident' | 'ticket'; id: string }) => void;
   still: boolean;
+  /** True while tickets are arriving. */
+  raining: boolean;
 };
 
-export default function Field({ tickets, pending, incidents, selected, onSelect, still }: FieldProps) {
+export default function Field({ tickets, pending, incidents, selected, onSelect, still, raining }: FieldProps) {
+  const registry = useMemo<Registry>(() => new Map(), []);
+  const links = useMemo(() => {
+    const out: LinkSpec[] = [];
+    for (const t of tickets) {
+      if (t.status !== 'joined') continue;
+      const best = t.pairs.find((p) => p.relation === 'same' || p.relation === 'conflicting');
+      if (best) out.push({ key: `m-${t.id}`, a: t.id, b: best.with, color: '#eaf2f1', lasting: false });
+    }
+    for (const inc of incidents) for (const c of inc.conflicts) out.push({ key: `c-${c.a}-${c.b}`, a: c.a, b: c.b, color: TONE_HEX.storm, lasting: true });
+    return out;
+  }, [tickets, incidents]);
+  const focusIndex = selected?.kind === 'incident' ? incidents.findIndex((i) => i.id === selected.id) : -1;
+  const focus = useMemo(() => (focusIndex >= 0 ? cellCentre(focusIndex) : new THREE.Vector3(0, 0, 0)), [focusIndex]);
   const centres = useMemo(() => incidents.map((_, i) => cellCentre(i)), [incidents.length]);
   // One list, so a drop keeps its place in the scene from the moment it arrives to the moment it settles.
   const drops = useMemo(() => {
@@ -316,6 +413,7 @@ export default function Field({ tickets, pending, incidents, selected, onSelect,
         const kind = t.reading ? 'pending' : t.status === 'joined' && inc ? 'joined' : t.status === 'held' || t.status === 'unscreened' ? 'held' : 'alone';
         return (
           <Drop
+            registry={registry}
             key={t.id}
             id={t.id}
             tone={t.reading ? 'mute' : ticketTone(t as TicketRecord, incidents)}
@@ -329,10 +427,16 @@ export default function Field({ tickets, pending, incidents, selected, onSelect,
           />
         );
       })}
+      {links.map((l) => (
+        <Link key={l.key} registry={registry} spec={l} still={still} />
+      ))}
+      <Rain on={raining} still={still} />
+      <Focus target={focus} />
       <EffectComposer>
         <Bloom luminanceThreshold={0.7} luminanceSmoothing={0.2} intensity={0.55} mipmapBlur />
       </EffectComposer>
       <OrbitControls
+        makeDefault
         enablePan={false}
         enableDamping
         minDistance={7}
@@ -341,7 +445,6 @@ export default function Field({ tickets, pending, incidents, selected, onSelect,
         maxPolarAngle={1.32}
         autoRotate={!still}
         autoRotateSpeed={0.3}
-        target={[0, 1.1, 0]}
       />
     </Canvas>
   );

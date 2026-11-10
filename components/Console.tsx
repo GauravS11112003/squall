@@ -338,7 +338,7 @@ export default function Console() {
 
         <section className="centre" aria-label="Storm field">
           <div className="field-wrap">
-            <Field tickets={state.tickets} pending={pending} incidents={state.incidents} selected={selected} onSelect={setSelected} still={still} />
+            <Field tickets={state.tickets} pending={pending} incidents={state.incidents} selected={selected} onSelect={setSelected} still={still} raining={running || pending !== null} />
           </div>
 
           <div className="overlay-top">
