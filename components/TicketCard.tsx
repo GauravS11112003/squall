@@ -2,7 +2,7 @@
 
 import { ChevronLeft, EyeOff, GitMerge, ListFilter, ScanText, Send, Shield } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { POLICY } from '@/lib/policy';
+import { usePolicy } from './policy-context';
 import type { CallLog, Incident, TicketRecord } from '@/lib/types';
 import { TICKET_WORD, clock, label, locate, marked, maskTokens, pct, ticketTone } from '@/lib/ui';
 import type { MarkSpec } from '@/lib/ui';
@@ -19,6 +19,7 @@ function cost(calls: CallLog[], endpoint: string): string | null {
 /** One ticket, as a journey: what each Clocked endpoint read, and what that changed. */
 export function TicketCard(props: { ticket: TicketRecord; incidents: Incident[]; calls: CallLog[]; onSelect: Select }) {
   const t = props.ticket;
+  const POLICY = usePolicy();
   const [asFiled, setAsFiled] = useState(false);
   useEffect(() => setAsFiled(false), [t.id]);
   const tone = ticketTone(t, props.incidents);
@@ -96,7 +97,7 @@ export function TicketCard(props: { ticket: TicketRecord; incidents: Incident[];
               <EyeOff />
             </span>
             <h4>
-              Protect <small>{cost(calls, 'pii')}</small>
+              Hide personal data <small>Protect{cost(calls, 'pii') ? `, ${cost(calls, 'pii')}` : ''}</small>
             </h4>
             <div className="in">
               <p>
@@ -115,7 +116,7 @@ export function TicketCard(props: { ticket: TicketRecord; incidents: Incident[];
                 <Shield />
               </span>
               <h4>
-                Guard <small>{cost(calls, 'injection')}</small>
+                Screen for manipulation <small>Guard{cost(calls, 'injection') ? `, ${cost(calls, 'injection')}` : ''}</small>
               </h4>
               <div className="in">
                 <p>
@@ -134,7 +135,7 @@ export function TicketCard(props: { ticket: TicketRecord; incidents: Incident[];
                 <ScanText />
               </span>
               <h4>
-                Extract <small>{cost(calls, 'extract')}</small>
+                Quote the facts <small>Extract{cost(calls, 'extract') ? `, ${cost(calls, 'extract')}` : ''}</small>
               </h4>
               <div className="in">
                 <dl className="facts">
@@ -158,10 +159,9 @@ export function TicketCard(props: { ticket: TicketRecord; incidents: Incident[];
                 <ListFilter />
               </span>
               <h4>
-                Rerank <small>{cost(calls, 'rerank')}</small>
+                Shortlist what it could belong to <small>Rerank{cost(calls, 'rerank') ? `, ${cost(calls, 'rerank')}` : ''}</small>
               </h4>
               <div className="in">
-                <p>Which open incident or earlier ticket could this belong to?</p>
                 <div className="list" style={{ margin: '0 -10px' }}>
                   {t.candidates.slice(0, 4).map((c) => (
                     <button key={c.id} type="button" className={`item t-${c.action === 'skip' ? 'slate' : 'blue'}`} onClick={() => props.onSelect({ kind: c.kind, id: c.id })}>
@@ -181,7 +181,7 @@ export function TicketCard(props: { ticket: TicketRecord; incidents: Incident[];
                 <GitMerge />
               </span>
               <h4>
-                Compare <small>{cost(calls, 'compare')}</small>
+                Decide whether to merge <small>Compare{cost(calls, 'compare') ? `, ${cost(calls, 'compare')}` : ''}</small>
               </h4>
               <div className="in">
                 {t.pairs.slice(0, 2).map((p) => (
@@ -222,7 +222,7 @@ export function TicketCard(props: { ticket: TicketRecord; incidents: Incident[];
                 <Send />
               </span>
               <h4>
-                Reply <small>{t.followUp ? cost(calls, 'rerank') : null}</small>
+                Reply to the reporter <small>{t.followUp ? 'Rerank, with the thread' : 'checked workaround'}</small>
               </h4>
               <div className="in">
                 <p>{t.followUp ? 'This person had already been sent a fix. Rerank read the thread, so they get the next step and not the same one again.' : `Sent the checked workaround: ${t.sent.join(', ')}.`}</p>

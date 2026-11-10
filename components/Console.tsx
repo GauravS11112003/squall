@@ -1,16 +1,24 @@
 'use client';
 
-import { ChartNoAxesColumn, Play } from 'lucide-react';
+import { ChartNoAxesColumn, CircleHelp, Play, SlidersHorizontal } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { STORM } from '@/data/storm';
 import { costOf } from '@/lib/metrics';
+import { resolvePolicy } from '@/lib/policy';
+import type { PolicyOverrides } from '@/lib/policy';
+import { incidentReport } from '@/lib/report';
 import { applyStep, priorOf } from '@/lib/run';
 import type { StormState } from '@/lib/run';
+import { journeyOf, storyOf } from '@/lib/story';
 import type { CallLog, Incident, Mode, RawTicket, Recording, StepOutput } from '@/lib/types';
-import { incidentTone, pct } from '@/lib/ui';
+import { incidentName, incidentTone, pct } from '@/lib/ui';
 import { Dock } from './Dock';
+import { Guide } from './Guide';
 import { IncidentCard } from './IncidentCard';
+import { Moments } from './Moments';
+import { PolicyContext } from './policy-context';
+import { PolicySheet } from './PolicySheet';
 import { Scoreboard } from './Scoreboard';
 import { Stream } from './Stream';
 import { TicketCard } from './TicketCard';
@@ -50,12 +58,17 @@ export default function Console() {
   const [board, setBoard] = useState(false);
   const [still, setStill] = useState(false);
   const [flash, setFlash] = useState(0);
+  const [guide, setGuide] = useState(false);
+  const [policyOpen, setPolicyOpen] = useState(false);
+  const [overrides, setOverrides] = useState<PolicyOverrides>({});
+  const policy = useMemo(() => resolvePolicy(overrides), [overrides]);
 
   // The run loop reads the latest values through a ref, so it never works from a stale render.
-  const ref = useRef({ state, cursor, running: false, speed, mode, code, token: 0 });
+  const ref = useRef({ state, cursor, running: false, speed, mode, code, token: 0, overrides });
   ref.current.speed = speed;
   ref.current.mode = mode;
   ref.current.code = code;
+  ref.current.overrides = overrides;
 
   const commit = useCallback((next: StormState) => {
     ref.current.state = next;
@@ -115,7 +128,7 @@ export default function Console() {
         const res = await fetch('/api/step', {
           method: 'POST',
           headers: headers(),
-          body: JSON.stringify({ ticket, incidents: ref.current.state.incidents, prior: priorOf(ref.current.state) }),
+          body: JSON.stringify({ ticket, incidents: ref.current.state.incidents, prior: priorOf(ref.current.state), policy: ref.current.overrides }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error ?? `The server answered ${res.status}.`);
@@ -131,43 +144,48 @@ export default function Console() {
     [absorb, headers],
   );
 
-  const run = useCallback(async () => {
-    if (ref.current.running) return;
-    const token = ++ref.current.token;
-    ref.current.running = true;
-    setRunning(true);
-    setError(null);
-    while (ref.current.running && ref.current.token === token) {
-      const i = ref.current.cursor;
-      const steps = ref.current.mode === 'replay' ? recording?.steps ?? [] : null;
-      const total = steps ? steps.length : STORM.length;
-      if (i >= total) {
-        setBoard(true);
-        break;
-      }
-      if (steps) {
-        const out = steps[i];
-        setPending(out.ticket);
-        await sleep(Math.max(200, 760 / ref.current.speed));
+  /** Reads tickets in order: the whole storm, or `limit` of them (the step button reads one). */
+  const run = useCallback(
+    async (limit = Infinity) => {
+      if (ref.current.running) return;
+      const token = ++ref.current.token;
+      ref.current.running = true;
+      setRunning(true);
+      setError(null);
+      let read = 0;
+      while (ref.current.running && ref.current.token === token && read < limit) {
+        const i = ref.current.cursor;
+        const steps = ref.current.mode === 'replay' ? recording?.steps ?? [] : null;
+        const total = steps ? steps.length : STORM.length;
+        if (i >= total) break;
+        const fast = limit === 1 ? 4 : ref.current.speed;
+        if (steps) {
+          const out = steps[i];
+          setPending(out.ticket);
+          await sleep(Math.max(200, 760 / fast));
+          if (ref.current.token !== token) return;
+          setPending(null);
+          absorb(out);
+          await sleep(Math.max(140, 640 / fast));
+        } else {
+          const ok = await liveStep(STORM[i]);
+          if (ref.current.token !== token) return;
+          if (!ok) break;
+          await sleep(Math.max(60, 380 / fast));
+        }
         if (ref.current.token !== token) return;
-        setPending(null);
-        absorb(out);
-        await sleep(Math.max(140, 640 / ref.current.speed));
-      } else {
-        const ok = await liveStep(STORM[i]);
-        if (ref.current.token !== token) return;
-        if (!ok) break;
-        await sleep(Math.max(60, 380 / ref.current.speed));
+        ref.current.cursor = i + 1;
+        setCursor(i + 1);
+        read++;
+        if (i + 1 >= total && limit !== 1) setBoard(true);
       }
-      if (ref.current.token !== token) return;
-      ref.current.cursor = i + 1;
-      setCursor(i + 1);
-    }
-    if (ref.current.token === token) {
-      ref.current.running = false;
-      setRunning(false);
-    }
-  }, [absorb, liveStep, recording]);
+      if (ref.current.token === token) {
+        ref.current.running = false;
+        setRunning(false);
+      }
+    },
+    [absorb, liveStep, recording],
+  );
 
   const pause = useCallback(() => {
     ref.current.running = false;
@@ -234,7 +252,7 @@ export default function Console() {
       setError(null);
       try {
         const members = priorOf(ref.current.state).filter((p) => p.incidentId === inc.id);
-        const res = await fetch('/api/declare', { method: 'POST', headers: headers(), body: JSON.stringify({ incident: inc, members, at: now }) });
+        const res = await fetch('/api/declare', { method: 'POST', headers: headers(), body: JSON.stringify({ incident: inc, members, at: now, policy: ref.current.overrides }) });
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error ?? `The server answered ${res.status}.`);
         replaceIncident(data.incident, data.calls);
@@ -264,7 +282,7 @@ export default function Console() {
         const res = await fetch('/api/verify', {
           method: 'POST',
           headers: headers(),
-          body: JSON.stringify({ draft, members, passageIds: inc.response?.reply?.passageIds ?? [], incidentId: inc.id, at: now }),
+          body: JSON.stringify({ draft, members, passageIds: inc.response?.reply?.passageIds ?? [], incidentId: inc.id, at: now, policy: ref.current.overrides }),
         });
         const data = await res.json();
         if (!res.ok) return data?.error ?? 'Verify did not answer. The edited update is unchecked and cannot be sent.';
@@ -293,6 +311,53 @@ export default function Console() {
   const started = state.tickets.length > 0 || pending !== null;
   const simulated = mode === 'sim' || (mode === 'replay' && recording?.meta.mode !== 'live');
   const cost = useMemo(() => costOf(state.calls), [state.calls]);
+  const events = useMemo(() => storyOf(state.tickets, state.incidents, policy), [state.tickets, state.incidents, policy]);
+  const lastTicket = state.tickets.length ? state.tickets[state.tickets.length - 1] : null;
+  const journey = useMemo(() => journeyOf(pending ? null : lastTicket, state.incidents), [pending, lastTicket, state.incidents]);
+  const caption = useMemo(() => {
+    if (pending) return { title: `Reading ${pending.id}`, detail: `Just in from ${pending.from}. Up to six checks before anything is decided.`, tone: 'slate', reading: true };
+    const e = lastTicket ? events.find((x) => x.ticketId === lastTicket.id && x.rank === 0) : null;
+    if (e) return { title: e.title, detail: e.detail, tone: e.tone, reading: false };
+    return { title: 'Ready when you are', detail: 'Press play, or the right arrow to read one ticket at a time.', tone: 'slate', reading: false };
+  }, [pending, lastTicket, events]);
+
+  const exportReport = useCallback(
+    (inc: Incident) => {
+      const s = ref.current.state;
+      const from = simulated ? 'the offline simulator (not Clocked)' : mode === 'replay' ? 'a recorded live run on the Clocked API' : 'the Clocked API, live';
+      const blob = new Blob([incidentReport(inc, s.tickets, s.incidents, s.calls, policy, from)], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${inc.id.toLowerCase()}-${incidentName(inc).toLowerCase().replace(/[^a-z0-9]+/g, '-')}-report.md`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    },
+    [mode, policy, simulated],
+  );
+
+  // Space plays or pauses, the right arrow reads one ticket, ? opens the guide, Esc steps back.
+  const keys = useRef({ run, pause, canRun, done, started, running, sheet: board || guide || policyOpen });
+  keys.current = { run, pause, canRun, done, started, running, sheet: board || guide || policyOpen };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const k = keys.current;
+      if (e.key === '?') setGuide(true);
+      else if (k.sheet) return;
+      else if (e.key === 'Escape') setSelected(null);
+      else if (e.key === ' ' && k.canRun && (el?.tagName !== 'BUTTON' || el === document.body)) {
+        e.preventDefault();
+        if (k.running) k.pause();
+        else if (!k.done) k.run();
+      } else if (e.key === 'ArrowRight' && k.canRun && !k.running && !k.done) k.run(1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const modes = useMemo(() => {
     const list: { id: Mode; word: string }[] = [];
     if (status?.live) list.push({ id: 'live', word: 'Live' });
@@ -309,9 +374,9 @@ export default function Console() {
         : null;
 
   return (
-    <>
+    <PolicyContext.Provider value={policy}>
       <div className="stage">
-        <Stage tickets={state.tickets} pending={pending} incidents={state.incidents} selected={selected} onSelect={setSelected} still={still} idle={!started} />
+        <Stage tickets={state.tickets} pending={pending} incidents={state.incidents} selected={selected} onSelect={setSelected} still={still} idle={!started} policy={policy} />
         <div key={flash} className={`stage-flash ${flash ? 'on' : ''}`} />
       </div>
 
@@ -345,8 +410,15 @@ export default function Console() {
             <ChartNoAxesColumn size={15} /> <b>Score</b>
           </button>
         )}
+        <button className={`pill ${Object.keys(overrides).length ? 't-blue' : ''}`} type="button" onClick={() => setPolicyOpen(true)} title="The lines that decide what happens at each probability">
+          <SlidersHorizontal size={15} /> <b>Policy</b>
+          {Object.keys(overrides).length > 0 && <span className="live" />}
+        </button>
+        <button className="pill" type="button" onClick={() => setGuide(true)} title="How to read the screen (?)">
+          <CircleHelp size={15} /> <b>Guide</b>
+        </button>
         {modes.length > 1 && (
-          <div className="seg" role="group" aria-label="Where the answers come from">
+          <div className="seg hide-s" role="group" aria-label="Where the answers come from">
             {modes.map((m) => (
               <button key={m.id} type="button" aria-pressed={mode === m.id} onClick={() => mode !== m.id && reset(m.id)}>
                 {m.word}
@@ -364,7 +436,7 @@ export default function Console() {
               When a service fails, people report it in dozens of different ways. Squall reads every ticket as it lands, groups the ones that mean the same thing, and raises the major incident while it is still forming.
             </p>
             <div className="go rise d2">
-              <button className="btn ink big" type="button" onClick={run} disabled={!canRun} tabIndex={started ? -1 : 0}>
+              <button className="btn ink big" type="button" onClick={() => run()} disabled={!canRun} tabIndex={started ? -1 : 0}>
                 <Play size={17} fill="currentColor" /> Start the storm
               </button>
               <small>
@@ -375,6 +447,20 @@ export default function Console() {
                     : `${STORM.length} synthetic tickets, answered by the offline simulator.`}
               </small>
             </div>
+            <ul className="legend rise d2" aria-label="What you will see">
+              <li>
+                <span className="g g-dot" />
+                A dot is one ticket
+              </li>
+              <li>
+                <span className="g g-storm" />
+                A storm is one fault, reported many times
+              </li>
+              <li>
+                <span className="g g-ring" />
+                The ring is the chance it is major
+              </li>
+            </ul>
           </>
         ) : status ? (
           <p className="rise d1">
@@ -401,6 +487,7 @@ export default function Console() {
         tickets={state.tickets}
         pending={pending}
         incidents={state.incidents}
+        events={events}
         selectedId={ticket?.id ?? null}
         onSelect={setSelected}
         total={plan.length}
@@ -418,7 +505,7 @@ export default function Console() {
               return (
                 <button key={i.id} role="tab" type="button" className={`t-${incidentTone(i)}`} aria-selected={incident?.id === i.id} onClick={() => setSelected({ kind: 'incident', id: i.id })}>
                   <span className="dot" />
-                  {i.services[0] ?? i.id}
+                  {incidentName(i)}
                   <span style={{ color: 'var(--ink-3)', fontWeight: 500 }}>{last ? pct(last.pMajor) : i.memberIds.length}</span>
                 </button>
               );
@@ -442,6 +529,7 @@ export default function Console() {
             onDismiss={() => dismiss(incident)}
             onVerify={(d) => verify(incident, d)}
             onSend={() => setSent((x) => ({ ...x, [incident.id]: { at: now, to: incident.memberIds.length } }))}
+            onExport={() => exportReport(incident)}
           />
         ) : null}
       </section>
@@ -456,7 +544,10 @@ export default function Console() {
         canRun={canRun}
         speed={speed}
         selectedId={ticket?.id ?? null}
-        onPlay={run}
+        caption={caption}
+        journey={journey}
+        onPlay={() => run()}
+        onStep={() => run(1)}
         onPause={pause}
         onReset={() => reset()}
         onSpeed={setSpeed}
@@ -464,7 +555,10 @@ export default function Console() {
         away={!started}
       />
 
+      {started && <Moments events={events} onSelect={setSelected} quiet={Boolean(error) || board || guide || policyOpen} />}
       {board && mode && <Scoreboard tickets={state.tickets} incidents={state.incidents} calls={state.calls} mode={mode} simulated={simulated} onClose={() => setBoard(false)} />}
-    </>
+      {guide && <Guide onClose={() => setGuide(false)} />}
+      {policyOpen && <PolicySheet overrides={overrides} onChange={setOverrides} incidents={state.incidents} tickets={state.tickets} applies={mode !== 'replay'} onClose={() => setPolicyOpen(false)} />}
+    </PolicyContext.Provider>
   );
 }

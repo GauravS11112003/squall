@@ -115,3 +115,20 @@ export const DRAFT_FIELDS = {
 };
 
 export const VERIFY_QUESTION = 'What is failing, who is affected, and what should affected employees do now?';
+
+export type Policy = { -readonly [K in keyof typeof POLICY]: number };
+
+/** The lines an incident manager may move. Everything else stays fixed. */
+export const ADJUSTABLE = ['guardHold', 'askManager', 'autoDeclare'] as const;
+export type PolicyOverrides = Partial<Record<(typeof ADJUSTABLE)[number], number>>;
+
+/** Applies a manager's overrides on top of the defaults, clamped, with "ask" never above "declare". */
+export function resolvePolicy(overrides?: PolicyOverrides | null): Policy {
+  const P: Policy = { ...POLICY };
+  for (const key of ADJUSTABLE) {
+    const v = overrides?.[key];
+    if (typeof v === 'number' && Number.isFinite(v)) P[key] = Math.min(0.99, Math.max(0.05, Math.round(v * 100) / 100));
+  }
+  if (P.askManager > P.autoDeclare) P.askManager = P.autoDeclare;
+  return P;
+}

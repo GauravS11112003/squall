@@ -48,3 +48,29 @@ describe('engine on the simulator', () => {
     expect(run.tickets.every((t) => t.status === 'alone')).toBe(true);
   });
 });
+
+describe('policy lines and the story', () => {
+  it('a higher declare line sends the same incident to a person instead', async () => {
+    const run = await runStorm(STORM.slice(0, 9), simApi(), KB, undefined, { autoDeclare: 0.99 });
+    const vpn = run.incidents.find((i) => i.memberIds.includes('T-1001'))!;
+    expect(vpn.status).toBe('review');
+    expect(vpn.response).toBeNull();
+  });
+
+  it('tells the run as plain events, in order, and what-if reads recorded Decide answers only', async () => {
+    const { storyOf, whatIf, journeyOf } = await import('../lib/story');
+    const { resolvePolicy } = await import('../lib/policy');
+    const run = await runStorm(STORM, simApi(), KB);
+    const P = resolvePolicy();
+    const events = storyOf(run.tickets, run.incidents, P);
+    expect(events.map((e) => e.at)).toEqual([...events.map((e) => e.at)].sort((a, b) => a - b));
+    expect(events.some((e) => e.kind === 'held' && e.ticketId === 'T-1017')).toBe(true);
+    expect(events.some((e) => e.kind === 'blocked' && e.title.includes('KB-110'))).toBe(true);
+    expect(events.some((e) => e.kind === 'followup' && e.ticketId === 'T-1034')).toBe(true);
+    expect(new Set(events.map((e) => e.id)).size).toBe(events.length);
+    const strict = whatIf(run.incidents, resolvePolicy({ autoDeclare: 0.99, askManager: 0.99 }));
+    expect(strict.every((w) => w.outcome === 'watching')).toBe(true);
+    const held = run.tickets.find((t) => t.id === 'T-1017')!;
+    expect(journeyOf(held, run.incidents).map((s) => s.state)).toEqual(['done', 'stop', 'skip', 'skip', 'skip', 'skip']);
+  });
+});

@@ -3,7 +3,7 @@
 import { Check, Minus, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { KB_BY_ID } from '@/data/kb';
-import { POLICY } from '@/lib/policy';
+import { usePolicy } from './policy-context';
 import type { Incident, PassageChoice, Verification } from '@/lib/types';
 import { clip, label, pct } from '@/lib/ui';
 
@@ -52,6 +52,7 @@ export function Bars({ data, top, order }: { data: Record<string, number>; top?:
 
 /** Decide's readings for one incident over time, with the two policy lines. */
 export function Trace({ incident }: { incident: Incident }) {
+  const POLICY = usePolicy();
   const d = incident.decisions;
   if (d.length < 2) return null;
   const W = 360;
@@ -130,6 +131,7 @@ export function Passages({ list }: { list: PassageChoice[] }) {
 }
 
 export function Claims({ v }: { v: Verification }) {
+  const POLICY = usePolicy();
   return (
     <ul className="claims">
       {v.claims.map((c, i) => {

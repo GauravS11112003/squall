@@ -1,8 +1,8 @@
 'use client';
 
-import { Check } from 'lucide-react';
+import { Check, Download } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { POLICY } from '@/lib/policy';
+import { usePolicy } from './policy-context';
 import type { Incident, Mode, TicketRecord } from '@/lib/types';
 import { STATUS_WORD, clock, incidentTone } from '@/lib/ui';
 import { Bars, Claims, Count, Passages, Trace } from './bits';
@@ -28,8 +28,10 @@ export function IncidentCard(props: {
   onDismiss: () => void;
   onVerify: (draft: string) => Promise<string | null>;
   onSend: () => void;
+  onExport: () => void;
 }) {
   const inc = props.incident;
+  const POLICY = usePolicy();
   const tone = incidentTone(inc);
   const last = inc.decisions[inc.decisions.length - 1];
   const members = props.tickets.filter((t) => t.incidentId === inc.id);
@@ -49,6 +51,16 @@ export function IncidentCard(props: {
   const edited = v !== null && draft.trim() !== v.draft.trim();
   const blockedCount = res?.passages.filter((p) => p.blocked).length ?? 0;
   const open = inc.status === 'watching' || inc.status === 'review';
+  // Counting, not a model: where the reports come from and whose work has a deadline, from Extract's verbatim values.
+  const siteCounts: Record<string, number> = {};
+  for (const m of members) {
+    const v = m.facts.site?.value?.trim();
+    if (!v) continue;
+    const key = v.charAt(0).toUpperCase() + v.slice(1);
+    siteCounts[key] = (siteCounts[key] ?? 0) + 1;
+  }
+  const siteTop = Object.entries(siteCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const deadlines = members.filter((m) => m.facts.impact?.value);
 
   return (
     <>
@@ -122,6 +134,9 @@ export function IncidentCard(props: {
             {blockedCount > 0 && <sup>{blockedCount} blocked</sup>}
           </button>
         )}
+        <button type="button" className="export" onClick={props.onExport} title="Download this incident as a Markdown report">
+          <Download /> Report
+        </button>
       </div>
 
       <div className="body" key={tab}>
@@ -161,10 +176,38 @@ export function IncidentCard(props: {
                 <dd>{inc.services.join(', ') || '–'}</dd>
                 <dt>Error</dt>
                 <dd>{inc.errors.join(', ') || '–'}</dd>
-                <dt>Places</dt>
-                <dd>{inc.sites.join(', ') || '–'}</dd>
               </dl>
             </section>
+            {siteTop.length > 0 && (
+              <section>
+                <div className="label">Where the reports come from</div>
+                <div className="tally">
+                  {siteTop.map(([site, n]) => (
+                    <div key={site}>
+                      <span>{site}</span>
+                      <i>
+                        <u style={{ width: `${(n / siteTop[0][1]) * 100}%` }} />
+                      </i>
+                      <em>{n}</em>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+            {deadlines.length > 0 && (
+              <section>
+                <div className="label">Work with a deadline, in the reporter's words</div>
+                <div className="list">
+                  {deadlines.map((t) => (
+                    <button key={t.id} type="button" className="item t-amber" onClick={() => props.onSelect({ kind: 'ticket', id: t.id })}>
+                      <b>{t.id}</b>
+                      <span>{t.facts.impact!.value}</span>
+                      <em>Reply first</em>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
             {inc.conflicts.length > 0 && (
               <section>
                 <div className="label">Reports that disagree</div>

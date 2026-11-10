@@ -4,7 +4,7 @@ import { Html, OrbitControls } from '@react-three/drei';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { POLICY } from '@/lib/policy';
+import type { Policy } from '@/lib/policy';
 import type { Incident, RawTicket, TicketRecord } from '@/lib/types';
 import { incidentTone, pct } from '@/lib/ui';
 
@@ -29,12 +29,12 @@ const PALETTE: Record<string, [string, string]> = {
 };
 
 const SEATS: [number, number][] = [
-  [-2.3, 0.3],
-  [2.9, -1.5],
-  [1.6, 3.1],
-  [-3.4, -3.3],
-  [5.4, 1.8],
-  [-5.6, 2.9],
+  [-1.9, 0.3],
+  [2.3, -1.7],
+  [1.1, 2.7],
+  [-0.5, -4.3],
+  [4.6, 1.9],
+  [-4.9, 2.6],
 ];
 
 function seat(index: number): THREE.Vector3 {
@@ -45,7 +45,7 @@ function seat(index: number): THREE.Vector3 {
 }
 
 const radiusFor = (reports: number) => 0.5 + 0.185 * Math.pow(Math.max(1, reports), 0.8);
-const HELD_AT = new THREE.Vector3(-2.9, 0, 4.7);
+const HELD_AT = new THREE.Vector3(-3.7, 0, -3.3);
 
 function hash(s: string): number {
   let h = 2166136261;
@@ -145,6 +145,7 @@ function Hurricane(props: {
   geometry: THREE.BufferGeometry;
   shadow: THREE.Texture;
   live: Live;
+  policy: Policy;
   selected: boolean;
   still: boolean;
   onSelect: () => void;
@@ -245,7 +246,7 @@ function Hurricane(props: {
             <meshBasicMaterial color={toneHex} transparent opacity={0.95} depthWrite={false} toneMapped={false} />
           </mesh>
         )}
-        {[POLICY.askManager, POLICY.autoDeclare].map((line) => {
+        {[props.policy.askManager, props.policy.autoDeclare].map((line) => {
           const a = Math.PI / 2 - line * Math.PI * 2;
           return (
             <mesh key={line} position={[Math.cos(a) * 1.02, Math.sin(a) * 1.02, 0]} rotation={[0, 0, a]}>
@@ -372,7 +373,7 @@ function Drop(props: {
       target.set(HELD_AT.x + Math.cos(a) * 0.18, 0.1, HELD_AT.z + Math.sin(a) * 0.18);
     } else {
       const a = seed * Math.PI * 2 + t * 0.015;
-      const r = 5.6 + ((seed * 7919) % 1) * 1.9;
+      const r = 5.3 + ((seed * 7919) % 1) * 1.5;
       target.set(Math.cos(a) * r, 0.1, Math.sin(a) * r * 0.8);
     }
     if (g.userData.placed !== true) {
@@ -515,7 +516,7 @@ function Focus({ target }: { target: THREE.Vector3 }) {
   useFrame((state, dt) => {
     const controls = state.controls as unknown as { target: THREE.Vector3 } | null;
     if (!controls) return;
-    goal.set(target.x * 0.45, 0.5, target.z * 0.45);
+    goal.set(target.x * 0.35 + 0.55, 0.2, target.z * 0.35 + 0.9);
     controls.target.lerp(goal, 1 - Math.exp(-dt * 1.5));
     // sway, never a full orbit: nothing should end up behind a panel for long
     const c = controls as unknown as { getAzimuthalAngle: () => number; autoRotateSpeed: number };
@@ -535,9 +536,10 @@ export type StageProps = {
   still: boolean;
   /** True before the storm starts. */
   idle: boolean;
+  policy: Policy;
 };
 
-function Scene({ tickets, pending, incidents, selected, onSelect, still, idle }: StageProps) {
+function Scene({ tickets, pending, incidents, selected, onSelect, still, idle, policy }: StageProps) {
   const geometry = useHurricaneGeometry();
   const shadow = useShadowTexture();
   const registry = useMemo<Registry>(() => new Map(), []);
@@ -574,6 +576,7 @@ function Scene({ tickets, pending, incidents, selected, onSelect, still, idle }:
           geometry={geometry}
           shadow={shadow}
           live={live}
+          policy={policy}
           still={still}
           selected={selected?.kind === 'incident' && selected.id === inc.id}
           onSelect={() => onSelect({ kind: 'incident', id: inc.id })}
@@ -603,14 +606,14 @@ function Scene({ tickets, pending, incidents, selected, onSelect, still, idle }:
         <Link key={l.key} registry={registry} spec={l} still={still} />
       ))}
       <Focus target={focus} />
-      <OrbitControls makeDefault enablePan={false} enableDamping minDistance={8} maxDistance={26} minPolarAngle={0.5} maxPolarAngle={1.28} autoRotate={!still} autoRotateSpeed={0.22} />
+      <OrbitControls makeDefault enablePan={false} enableDamping minDistance={8} maxDistance={30} minPolarAngle={0.5} maxPolarAngle={1.28} autoRotate={!still} autoRotateSpeed={0.22} />
     </>
   );
 }
 
 export default function Stage(props: StageProps) {
   return (
-    <Canvas camera={{ position: [0, 8.6, 15.4], fov: 33 }} dpr={[1, 2]} gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}>
+    <Canvas camera={{ position: [0, 9.8, 17.4], fov: 33 }} dpr={[1, 2]} gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}>
       <Scene {...props} />
     </Canvas>
   );

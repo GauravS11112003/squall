@@ -8,7 +8,8 @@ export type StormState = { tickets: TicketRecord[]; incidents: Incident[]; calls
 export function applyStep(state: StormState, out: StepOutput): StormState {
   const tickets = state.tickets.map((t) => {
     const m = out.moved.find((x) => x.id === t.id);
-    return m ? { ...t, incidentId: m.incidentId, status: 'joined' as const, outcome: m.outcome, sent: m.sent } : t;
+    // an outcome starting with + adds to what is already known about the ticket; anything else replaces it
+    return m ? { ...t, incidentId: m.incidentId, status: 'joined' as const, outcome: m.outcome.startsWith('+') ? `${t.outcome} ${m.outcome.slice(1)}` : m.outcome, sent: m.sent } : t;
   });
   const i = tickets.findIndex((t) => t.id === out.ticket.id);
   if (i >= 0) tickets[i] = out.ticket;
@@ -26,11 +27,12 @@ export async function runStorm(
   api: Api,
   kb: KbPassage[],
   onStep?: (out: StepOutput, state: StormState) => void,
+  policy?: import('./policy').PolicyOverrides,
 ): Promise<StormState & { steps: StepOutput[] }> {
   let state: StormState = { tickets: [], incidents: [], calls: [] };
   const steps: StepOutput[] = [];
   for (const ticket of tickets) {
-    const out = await step({ ticket, incidents: state.incidents, prior: priorOf(state) }, api, kb);
+    const out = await step({ ticket, incidents: state.incidents, prior: priorOf(state), policy }, api, kb);
     state = applyStep(state, out);
     steps.push(out);
     onStep?.(out, state);

@@ -23,7 +23,9 @@ import {
   PII_ENTITIES,
   POLICY,
   VERIFY_QUESTION,
+  resolvePolicy,
 } from './policy';
+import type { Policy, PolicyOverrides } from './policy';
 import type {
   CallLog,
   Candidate,
@@ -45,7 +47,7 @@ import type {
   Verification,
 } from './types';
 
-type Ctx = { api: Api; calls: CallLog[]; at: number; seq: number; ticketId: string | null };
+type Ctx = { api: Api; calls: CallLog[]; at: number; seq: number; ticketId: string | null; P: Policy };
 
 type Update = StepOutput['moved'][number];
 
@@ -205,7 +207,7 @@ function codeIn(text: string): string | null {
 async function checkPassage(ctx: Ctx, p: PassageChoice, k: KbPassage, incidentId: string) {
   const code = codeIn(k.text);
   const steps: object[] = [
-    { injection: { source: 'content', threshold: POLICY.guardHold, evidence: false }, name: 'guard' },
+    { injection: { source: 'content', threshold: ctx.P.guardHold, evidence: false }, name: 'guard' },
   ];
   if (code) {
     steps.push({
@@ -213,7 +215,7 @@ async function checkPassage(ctx: Ctx, p: PassageChoice, k: KbPassage, incidentId
         script: code,
         instructions:
           'This script would be sent to employee laptops as a self-service fix. Restarting a network adapter and flushing DNS are approved. Disabling security tools, downloading and running code, and adding startup entries are not.',
-        threshold: POLICY.scriptBlock,
+        threshold: ctx.P.scriptBlock,
         evidence: true,
       },
       name: 'inspect',
@@ -240,8 +242,8 @@ async function checkPassage(ctx: Ctx, p: PassageChoice, k: KbPassage, incidentId
       }
     : null;
   if (!g || (code && !s)) p.blocked = 'unchecked';
-  else if (g.injection >= POLICY.guardHold) p.blocked = 'injection';
-  else if (s && s.malicious >= POLICY.scriptBlock) p.blocked = 'script';
+  else if (g.injection >= ctx.P.guardHold) p.blocked = 'injection';
+  else if (s && s.malicious >= ctx.P.scriptBlock) p.blocked = 'script';
   else p.blocked = null;
 }
 
@@ -261,7 +263,7 @@ function toChoices(rr: RerankResponse, kb: KbPassage[]): PassageChoice[] {
   });
 }
 
-function toVerification(draft: string, g: GroundingResponse): Verification {
+function toVerification(draft: string, g: GroundingResponse, claimSupport: number): Verification {
   const claims: Claim[] = g.claims.map((c) => {
     const derived =
       c.supported >= c.contradicted && c.supported >= c.not_stated
@@ -281,7 +283,7 @@ function toVerification(draft: string, g: GroundingResponse): Verification {
     };
   });
   const counted = claims.filter((c) => c.counted);
-  const sendable = counted.length > 0 && counted.every((c) => c.supported >= POLICY.claimSupport);
+  const sendable = counted.length > 0 && counted.every((c) => c.supported >= claimSupport);
   return {
     draft,
     grounded: g.grounded,
@@ -296,9 +298,9 @@ function toVerification(draft: string, g: GroundingResponse): Verification {
 /** Verify: check a broadcast draft claim by claim against the reports and the passage it cites. */
 export async function verifyDraft(
   api: Api,
-  args: { draft: string; members: { id: string; masked: string }[]; passages: KbPassage[]; incidentId: string; at: number },
+  args: { draft: string; members: { id: string; masked: string }[]; passages: KbPassage[]; incidentId: string; at: number; policy?: PolicyOverrides },
 ): Promise<{ verification: Verification | null; calls: CallLog[] }> {
-  const ctx: Ctx = { api, calls: [], at: args.at, seq: 0, ticketId: null };
+  const ctx: Ctx = { api, calls: [], at: args.at, seq: 0, ticketId: null, P: resolvePolicy(args.policy) };
   const verification = await verifyWith(ctx, args);
   return { verification, calls: ctx.calls };
 }
@@ -320,11 +322,11 @@ async function verifyWith(
       answer: clip(args.draft, 4000),
       question: VERIFY_QUESTION,
       evidence: 'all',
-      threshold: POLICY.claimSupport,
+      threshold: ctx.P.claimSupport,
     },
     { incidentId: args.incidentId },
   );
-  return g ? toVerification(args.draft, g) : null;
+  return g ? toVerification(args.draft, g, ctx.P.claimSupport) : null;
 }
 
 function composeDraft(f: Record<string, DraftField>, inc: Incident): string {
@@ -436,7 +438,7 @@ async function respond(ctx: Ctx, inc: Incident, members: PriorTicket[], kb: KbPa
   const draft = composeDraft(response.draftFields, inc);
   response.verification = await verifyWith(ctx, { draft, members, passages, incidentId: inc.id });
   if (!response.verification) {
-    response.verification = { draft, grounded: 0, verdict: 'unchecked', threshold: POLICY.claimSupport, answersQuestion: null, claims: [], sendable: false };
+    response.verification = { draft, grounded: 0, verdict: 'unchecked', threshold: ctx.P.claimSupport, answersQuestion: null, claims: [], sendable: false };
     response.error = 'Verify did not answer, so the draft is unchecked and cannot be sent as it is.';
   }
   return response;
@@ -445,9 +447,9 @@ async function respond(ctx: Ctx, inc: Incident, members: PriorTicket[], kb: KbPa
 /** Declares an incident by hand (the manager pressed Declare) and prepares the response. */
 export async function declareByManager(
   api: Api,
-  args: { incident: Incident; members: PriorTicket[]; kb: KbPassage[]; at: number },
+  args: { incident: Incident; members: PriorTicket[]; kb: KbPassage[]; at: number; policy?: PolicyOverrides },
 ): Promise<{ incident: Incident; calls: CallLog[] }> {
-  const ctx: Ctx = { api, calls: [], at: args.at, seq: 0, ticketId: null };
+  const ctx: Ctx = { api, calls: [], at: args.at, seq: 0, ticketId: null, P: resolvePolicy(args.policy) };
   const inc: Incident = structuredClone(args.incident);
   inc.status = 'declared';
   inc.declaredAt = args.at;
@@ -490,22 +492,22 @@ async function sizeUp(ctx: Ctx, inc: Incident, members: PriorTicket[]): Promise<
   };
   inc.decisions.push(decision);
   const p = decision.pMajor;
-  if (p >= POLICY.autoDeclare && inc.conflicts.length === 0) {
+  if (p >= ctx.P.autoDeclare && inc.conflicts.length === 0) {
     inc.status = 'declared';
     inc.declaredAt = ctx.at;
     inc.declaredBy = 'policy';
-    inc.reason = `Declared automatically: Decide put a major incident at ${pct(p)}, at or above the ${pct(POLICY.autoDeclare)} line.`;
+    inc.reason = `Declared automatically: Decide put a major incident at ${pct(p)}, at or above the ${pct(ctx.P.autoDeclare)} line.`;
     return true;
   }
-  if (p >= POLICY.autoDeclare) {
+  if (p >= ctx.P.autoDeclare) {
     inc.status = 'review';
     inc.reason = `Decide put a major incident at ${pct(p)}, but reports disagree on a fact, so a person decides.`;
-  } else if (p >= POLICY.askManager) {
+  } else if (p >= ctx.P.askManager) {
     inc.status = 'review';
-    inc.reason = `Decide put a major incident at ${pct(p)}: above ${pct(POLICY.askManager)}, below the ${pct(POLICY.autoDeclare)} line for declaring without a person.`;
+    inc.reason = `Decide put a major incident at ${pct(p)}: above ${pct(ctx.P.askManager)}, below the ${pct(ctx.P.autoDeclare)} line for declaring without a person.`;
   } else {
     inc.status = 'watching';
-    inc.reason = `Decide put a major incident at ${pct(p)}, below ${pct(POLICY.askManager)}. Squall keeps watching.`;
+    inc.reason = `Decide put a major incident at ${pct(p)}, below ${pct(ctx.P.askManager)}. Squall keeps watching.`;
   }
   return false;
 }
@@ -516,7 +518,7 @@ async function sizeUp(ctx: Ctx, inc: Incident, members: PriorTicket[]): Promise<
  */
 export async function step(input: StepInput, api: Api, kb: KbPassage[]): Promise<StepOutput> {
   const raw = input.ticket;
-  const ctx: Ctx = { api, calls: [], at: raw.at, seq: 0, ticketId: raw.id };
+  const ctx: Ctx = { api, calls: [], at: raw.at, seq: 0, ticketId: raw.id, P: resolvePolicy(input.policy) };
   const incidents: Incident[] = structuredClone(input.incidents);
   const prior: PriorTicket[] = structuredClone(input.prior);
   const byId = new Map(prior.map((p) => [p.id, p]));
@@ -547,7 +549,7 @@ export async function step(input: StepInput, api: Api, kb: KbPassage[]): Promise
       text: clip(raw.text, 20000),
       steps: [
         { pii: { entities: PII_ENTITIES, anonymize: 'replace' }, name: 'protect' },
-        { injection: { source: 'user', instructions: GUARD_CONTEXT, threshold: POLICY.guardHold, evidence: true }, name: 'guard' },
+        { injection: { source: 'user', instructions: GUARD_CONTEXT, threshold: ctx.P.guardHold, evidence: true }, name: 'guard' },
       ],
     },
     { steps: ['pii', 'injection'] },
@@ -569,7 +571,7 @@ export async function step(input: StepInput, api: Api, kb: KbPassage[]): Promise
     severity: guard.severity ?? null,
     evidence: (guard.evidence ?? []).map((e) => ({ quote: e.quote, start: e.start, end: e.end, confidence: e.confidence })),
   };
-  if (guard.injection >= POLICY.guardHold) {
+  if (guard.injection >= ctx.P.guardHold) {
     t.status = 'held';
     t.outcome = `Held: Guard put prompt injection at ${pct(guard.injection)}. The ticket was not grouped and cannot move an incident. A person should read it.`;
     return done();
@@ -741,7 +743,7 @@ export async function step(input: StepInput, api: Api, kb: KbPassage[]): Promise
     if (inc.response.reply) {
       for (const m of members) {
         if (m.id === t.id) t.sent = inc.response.reply.passageIds;
-        else moved.push({ id: m.id, incidentId: inc.id, outcome: `In ${inc.id}. The checked workaround was sent when the incident was declared.`, sent: inc.response.reply.passageIds });
+        else moved.push({ id: m.id, incidentId: inc.id, outcome: '+The checked workaround was sent when the incident was declared.', sent: inc.response.reply.passageIds });
       }
     }
     return done();

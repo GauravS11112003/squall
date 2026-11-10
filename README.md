@@ -57,6 +57,24 @@ Each endpoint is there because its answer changes what Squall does next.
 
 `/pipeline` is used wherever two steps read the same text, so they cost one request and one debit.
 
+### Around the storm
+
+The stage shows what is happening; these make it usable as a product.
+
+| Feature | What it does |
+|---|---|
+| **Narration** | The bottom console says what just happened to the latest ticket in one sentence, and shows how far it got through the six steps (Mask, Screen, Read, Shortlist, Match, Size up) with the Clocked endpoint named under each. |
+| **Moments** | An incident declared, a ticket held, a dangerous fix blocked, two reports disagreeing: each appears over the stage as a short banner and links to its evidence. |
+| **Activity** | The same events as a running audit trail beside the ticket list. |
+| **Policy lines** | The manager can move the three lines (declare without a person, ask a person, hold a ticket). In live mode they apply from the next ticket. In every mode the sheet replays the Clocked answers already taken against the lines, so you can see what a stricter or looser policy would have done before committing to it. |
+| **Deadlines** | Extract quotes any deadline the reporter mentions. The incident lists those reporters first, in their own words. |
+| **Where it is felt** | Reports per site, counted from Extract's verbatim values. |
+| **Step through** | Read one ticket at a time with the step button or the right arrow; space plays and pauses. |
+| **Incident report** | One click exports the incident as Markdown: timeline, every Decide reading, the disagreements, which fix was sent and which was blocked, the update with each claim's verdict, the masked reports and the Clocked usage. |
+| **Guide** | One sheet that explains every mark on the stage and every step, opened with `?`. |
+
+The narration, the activity trail, the what-if view and the report are built by counting and string-building over the engine's state ([`lib/story.ts`](lib/story.ts), [`lib/report.ts`](lib/report.ts)). No model is asked to explain what another model did.
+
 ### What is not a model call
 
 Rezolve's own guidance is to keep dates, counting and policy in deterministic code, and Squall does:
@@ -121,9 +139,12 @@ The comparison is the rule many desks run today: bucket tickets by keyword and r
 ```
 app/                 Next.js app: the console and four server routes (step, declare, verify, status)
 components/Stage.tsx The 3D storm: shader hurricanes, ticket dots, merge arcs (React Three Fiber)
-components/          Console (state and run loop), Stream, IncidentCard, TicketCard, Dock, Scoreboard
+components/          Console (state and run loop), Stream, IncidentCard, TicketCard, Dock, Moments,
+                     PolicySheet, Guide, Scoreboard
 lib/engine.ts        One ticket through every step; the response flow; all failure handling
 lib/policy.ts        Every threshold and every instruction sent to Clocked
+lib/story.ts         Plain-language events, the six-step journey, what-if on policy lines
+lib/report.ts        The exported incident report
 lib/api.ts           The single seam to Clocked (official clocked-sdk)
 lib/metrics.ts       Scoring, the keyword baseline, cost totals
 lib/sim.ts           Offline keyword simulator for development and tests. Not Clocked; always labelled.
@@ -137,7 +158,7 @@ public/recordings/   The recorded live run the public demo replays
 
 The storm is the whole screen. Each incident is a hurricane drawn from sixteen thousand particles in a vertex shader. It grows with every report Compare merges into it, spins faster as Decide's probability rises, and turns from blue (watching) to amber (a person is asked) to red (major). The ink dots riding inside it are the real tickets; select one to see what each endpoint read. The ring on the floor is the probability, with a notch at each policy line. An arc flashes between two tickets when Compare merges them, and an orange line stays between two reports that disagree. Held tickets sit in a dashed red pen.
 
-Three glass panels float over the stage: the ticket stream, one focused card (an incident's single number and single action, with the reasoning behind three tabs), and a timeline with one tick per ticket. Everything on the stage is also in those panels, and motion is switched off for people who ask their system for reduced motion.
+Three glass panels float over the stage: the ticket stream and activity trail, one focused card (an incident's single number and single action, with the reasoning behind three tabs), and a console that narrates the latest ticket above a timeline with one tick per ticket. Everything on the stage is also in those panels, and motion is switched off for people who ask their system for reduced motion.
 
 ## Deploying a public demo
 

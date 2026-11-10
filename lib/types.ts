@@ -216,6 +216,8 @@ export type PriorTicket = {
 };
 
 export type StepInput = {
+  /** Policy lines the manager has moved. Missing keys use the defaults in lib/policy.ts. */
+  policy?: import('./policy').PolicyOverrides;
   ticket: RawTicket;
   incidents: Incident[];
   prior: PriorTicket[];
@@ -225,6 +227,7 @@ export type StepOutput = {
   ticket: TicketRecord;
   incidents: Incident[];
   /** Earlier tickets whose incident changed in this step (a lone ticket that now has company). */
+  /** `outcome` replaces the ticket's outcome, or is appended to it when it starts with "+". */
   moved: { id: string; incidentId: string; outcome: string; sent: string[] }[];
   calls: CallLog[];
 };

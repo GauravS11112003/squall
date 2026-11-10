@@ -18,6 +18,6 @@ export async function POST(req: Request) {
   if (input.ticket.text.length > 6000) {
     return NextResponse.json({ error: 'Tickets are limited to 6,000 characters here.' }, { status: 413 });
   }
-  const out = await step({ ticket: input.ticket, incidents: input.incidents ?? [], prior: input.prior ?? [] }, g.api, KB);
+  const out = await step({ ticket: input.ticket, incidents: input.incidents ?? [], prior: input.prior ?? [], policy: input.policy }, g.api, KB);
   return NextResponse.json({ ...out, mode: g.api.mode });
 }
