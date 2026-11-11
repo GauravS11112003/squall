@@ -19,7 +19,7 @@ export type RawTicket = {
   /** Seconds after the storm starts. */
   at: number;
   from: string;
-  channel: 'email' | 'chat' | 'portal';
+  channel: 'email' | 'chat' | 'portal' | 'phone' | 'walkup';
   text: string;
   /** Id of the ticket this one follows up on, when the same person writes again. */
   thread?: string;

@@ -7,6 +7,7 @@ import type { CallLog, Incident, TicketRecord } from '@/lib/types';
 import { TICKET_WORD, clock, label, locate, marked, maskTokens, pct, ticketTone } from '@/lib/ui';
 import type { MarkSpec } from '@/lib/ui';
 import { Bars, Passages } from './bits';
+import { CHANNEL, ChannelIcon } from './ChannelIcon';
 
 type Select = (s: { kind: 'incident' | 'ticket'; id: string } | null) => void;
 
@@ -60,11 +61,12 @@ export function TicketCard(props: { ticket: TicketRecord; incidents: Incident[];
           {held ? 'Held by Guard' : TICKET_WORD[t.status]}
           {t.incidentId ? ` in ${t.incidentId}` : ''}
         </div>
-        <h2 className="title" style={{ marginTop: 10 }}>
+        <h2 className="title with-ico" style={{ marginTop: 10 }}>
+          <ChannelIcon channel={t.channel} />
           {t.id}
         </h2>
         <p className="sub">
-          {clock(t.at)}, {t.from}, by {t.channel}
+          {clock(t.at)}, {t.from}, {CHANNEL[t.channel].via}
           {t.thread ? `. A reply in ${t.thread}'s thread` : ''}
         </p>
       </div>

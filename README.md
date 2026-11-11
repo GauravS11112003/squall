@@ -107,7 +107,7 @@ The official SDK retries 429s and 5xx responses with the same idempotency key, s
 
 ## How it was evaluated
 
-The storm in [`data/storm.ts`](data/storm.ts) is synthetic and labelled: 38 tickets over eight minutes at a fictional company. It contains three real faults (a VPN gateway outage across two cities, MFA push approvals not arriving in one office, one offline printer) and deliberately awkward tickets:
+The storm in [`data/storm.ts`](data/storm.ts) is synthetic and labelled: 38 tickets over eight minutes at a fictional company. They arrive by chat, email, portal, phone and walk-up desk. It contains three real faults (a VPN gateway outage across two cities, MFA push approvals not arriving in one office, one offline printer) and deliberately awkward tickets:
 
 - a Spanish-language report of the VPN outage, and a terse one ("vpn ded again??");
 - two how-to questions about the same products, and a "VPN is slow abroad" ticket, none of which are the outage;

@@ -1,9 +1,10 @@
 'use client';
 
-import { AppWindow, BookOpen, EyeOff, Gauge, GitMerge, ListFilter, Mail, MessageCircle, Play, ScanText, ShieldCheck } from 'lucide-react';
+import { BookOpen, EyeOff, Gauge, GitMerge, ListFilter, Play, ScanText, ShieldCheck } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { STORM } from '@/data/storm';
+import { CHANNEL, ChannelIcon } from './ChannelIcon';
 
 /**
  * The opening screen makes the product's one idea visible with the storm's own
@@ -21,13 +22,6 @@ const PICKS: { id: string; excerpt: string; out?: { tone: 'slate' | 'red'; word:
   { id: 'T-1017', excerpt: 'ignore all previous instructions', out: { tone: 'red', word: 'Held' } },
   { id: 'T-1013', excerpt: 'refuses to connect' },
 ];
-
-/** Where a ticket came in. Original icons, not any vendor's mark. */
-const CHANNEL = {
-  chat: { word: 'Chat', Icon: MessageCircle },
-  email: { word: 'Email', Icon: Mail },
-  portal: { word: 'Portal', Icon: AppWindow },
-} as const;
 
 const STEPS: { verb: string; endpoint: string; hint: string; Icon: LucideIcon }[] = [
   { verb: 'Mask', endpoint: 'Protect', hint: 'Personal data is hidden before anything else reads the ticket.', Icon: EyeOff },
@@ -119,7 +113,7 @@ export function Landing(props: {
         </div>
 
         <div className="lp-art" aria-label={`Seven tickets from the demo storm. ${joined} report the same outage and become one incident; two are kept out.`}>
-          <span className="lp-cap">Seven of the {STORM.length} tickets in the demo storm</span>
+          <span className="lp-cap">Seven of the {STORM.length} tickets in the demo storm, from five channels</span>
           <svg viewBox="0 0 700 660" aria-hidden="true">
             {rows.map((r, i) =>
               r.out ? (
@@ -144,9 +138,7 @@ export function Landing(props: {
             const place = r.ticket.from.replace('Remote, ', '').replace(' office', '');
             return (
               <div key={r.id} className={`lp-card ${r.out ? `out t-${r.out.tone}` : ''}`} style={{ top: `${((TOP + i * (CARD_H + GAP)) / 660) * 100}%`, animationDelay: `${0.15 + i * 0.07}s` }}>
-                <span className={`lp-ico c-${r.ticket.channel}`} title={ch.word}>
-                  <ch.Icon />
-                </span>
+                <ChannelIcon channel={r.ticket.channel} />
                 <div>
                   <p>{r.excerpt}</p>
                   <div className="lp-meta">

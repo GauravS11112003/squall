@@ -740,6 +740,71 @@ button.pill:active {
   color: var(--ink-3);
 }
 
+/* Channel icons: original app-style tiles, one colour per source. */
+.app-ico {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 30%;
+  display: inline-grid;
+  place-items: center;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(150deg, var(--c1), var(--c2));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), inset 0 -3px 6px rgba(0, 0, 0, 0.14), 0 8px 16px -8px var(--c2), 0 1px 2px rgba(10, 15, 28, 0.18);
+}
+
+/* a soft gloss across the top half, like a lit app tile */
+.app-ico::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 52% 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0));
+  pointer-events: none;
+}
+
+.app-ico svg {
+  width: 76%;
+  height: 76%;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.16));
+}
+
+.app-ico.a-chat {
+  --c1: #b9a2ff;
+  --c2: #6d28d9;
+}
+
+.app-ico.a-email {
+  --c1: #62c6ff;
+  --c2: #1d4ed8;
+}
+
+.app-ico.a-portal {
+  --c1: #5fe3bd;
+  --c2: #0f766e;
+}
+
+.app-ico.a-phone {
+  --c1: #ffc56b;
+  --c2: #ea580c;
+}
+
+.app-ico.a-walkup {
+  --c1: #ffa3c4;
+  --c2: #db2777;
+}
+
+.title.with-ico {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.title.with-ico .app-ico {
+  width: 30px;
+  height: 30px;
+}
+
 /* Each ticket is a chip: a coloured channel icon and a few of the reporter's own words. */
 .lp-card {
   position: absolute;
@@ -750,8 +815,8 @@ button.pill:active {
   display: flex;
   align-items: center;
   gap: 1.5vh;
-  padding: 0 2.4vh 0 1vh;
-  border-radius: 999px;
+  padding: 0 2.4vh 0 1.1vh;
+  border-radius: 2.4vh;
   background: var(--glass-strong);
   border: 1px solid rgba(255, 255, 255, 0.95);
   box-shadow: var(--shadow-sm), inset 0 0 0 1px rgba(10, 15, 28, 0.05);
@@ -816,10 +881,16 @@ button.pill:active {
   --c2: #0f766e;
 }
 
-.lp-card.out .lp-ico {
-  filter: saturate(0.25);
-  opacity: 0.75;
-  box-shadow: none;
+.lp-card .app-ico {
+  width: 4.7vh;
+  height: 4.7vh;
+  min-width: 30px;
+  min-height: 30px;
+}
+
+.lp-card.out .app-ico {
+  opacity: 0.8;
+  filter: saturate(0.7);
 }
 
 .lp-card > div {

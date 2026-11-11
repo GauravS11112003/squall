@@ -3,6 +3,7 @@ import type { RawTicket } from '../lib/types';
 /**
  * A synthetic Monday-morning ticket storm at a fictional company (Larkspur Freight).
  * Every person, phone number, address and system name here is invented.
+ * Tickets arrive by chat, email, the self-service portal, phone (as transcribed) and the walk-up desk (as logged).
  * `at` is seconds after 08:40:00. Ground truth lives in data/truth.ts and is never
  * sent to Clocked or read by the engine.
  */
@@ -41,7 +42,7 @@ export const STORM: RawTicket[] = [
     id: 'T-1005',
     at: 66,
     from: 'Chicago office',
-    channel: 'portal',
+    channel: 'walkup',
     text: "How do I install Harbor VPN on my new laptop? I start remote work next week and I don't see it in the software catalog.",
   },
   {
@@ -69,7 +70,7 @@ export const STORM: RawTicket[] = [
     id: 'T-1009',
     at: 118,
     from: 'Remote, Denver',
-    channel: 'chat',
+    channel: 'phone',
     text: "Is the VPN down for everyone? Three of us on the Denver sales team can't connect, all remote today. Harbor says gateway not responding.",
   },
   {
@@ -160,7 +161,7 @@ export const STORM: RawTicket[] = [
     id: 'T-1022',
     at: 250,
     from: 'Chicago office',
-    channel: 'portal',
+    channel: 'walkup',
     text: "Can't sign in to anything. Keyring says 'waiting for approval' but my phone gets nothing. Yusuf Adeyemi, 312-555-0116.",
   },
   {
@@ -195,7 +196,7 @@ export const STORM: RawTicket[] = [
     id: 'T-1027',
     at: 310,
     from: 'Denver office',
-    channel: 'chat',
+    channel: 'phone',
     text: '3rd floor Denver printer still offline. Tried power cycling it.',
   },
   {
