@@ -8,7 +8,7 @@ import type { CallLog, Incident, Mode, TicketRecord } from '@/lib/types';
 import { clock, pct } from '@/lib/ui';
 
 /** The run against ground truth, next to the keyword rule many desks use today. */
-export function Scoreboard(props: { tickets: TicketRecord[]; incidents: Incident[]; calls: CallLog[]; mode: Mode; simulated: boolean; onClose: () => void }) {
+export function Scoreboard(props: { tickets: TicketRecord[]; incidents: Incident[]; calls: CallLog[]; mode: Mode; simulated: boolean; onClose: () => void; onRecords?: () => void }) {
   const s = useMemo(() => score(props.tickets, props.incidents), [props.tickets, props.incidents]);
   const b = useMemo(() => baseline(STORM), []);
   const cost = useMemo(() => costOf(props.calls), [props.calls]);
@@ -119,6 +119,13 @@ export function Scoreboard(props: { tickets: TicketRecord[]; incidents: Incident
             </div>
           </div>
         </div>
+        {props.onRecords && (
+          <div style={{ marginTop: 18 }}>
+            <button className="btn ink" type="button" onClick={props.onRecords}>
+              Open the records: proofs and documents for each incident
+            </button>
+          </div>
+        )}
         <p className="foot">One synthetic storm, written by the person who built the engine. It shows the mechanism on awkward cases; it is not a claim about your tickets. Method and limits are in the README.</p>
       </div>
     </div>

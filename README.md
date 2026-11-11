@@ -70,6 +70,7 @@ The stage shows what is happening; these make it usable as a product.
 | **Deadlines** | Extract quotes any deadline the reporter mentions. The incident lists those reporters first, in their own words. |
 | **Where it is felt** | Reports per site, counted from Extract's verbatim values. |
 | **Step through** | Read one ticket at a time with the step button or the right arrow; space plays and pauses. |
+| **Records** | A second view for after the run. Every incident is a record you can drill into: Proofs (why the tickets are one incident, why it is major, where reports disagree, why this fix was sent, why the update can go out), Documents (preview, PDF, download), Tickets, Activity and Clocked calls. Held tickets are listed beside them. |
 | **Status page with receipts** | One click turns an incident into a self-contained status page. Every sentence on it is a claim Verify marked supported, footnoted with the quoted report behind it. Unsupported sentences are left out and counted. Download it or print it. |
 | **Incident brief** | A one-page brief for the review: how Decide's reading rose against the policy lines, the timeline, what was sent, what was blocked and why, and the update with each claim's verdict. |
 | **Personal replies** | A reply to each reporter, written by Fill from that person's own ticket (including their deadline) and the checked workaround, then checked by Verify against those two sources. A reply with an unsupported claim cannot be sent. Reporters with a deadline come first. |
@@ -147,7 +148,7 @@ The comparison is the rule many desks run today: bucket tickets by keyword and r
 app/                 Next.js app: the console and five server routes (step, declare, verify, reply, status)
 components/Stage.tsx The 3D storm: shader hurricanes, ticket dots, merge arcs (React Three Fiber)
 components/          Console (state and run loop), Landing, Stream, IncidentCard, TicketCard, Dock, Moments,
-                     PolicySheet, Guide, Scoreboard
+                     PolicySheet, Guide, Scoreboard, Records (the after-run dashboard), Outputs
 lib/engine.ts        One ticket through every step; the response flow; all failure handling
 lib/policy.ts        Every threshold and every instruction sent to Clocked
 lib/story.ts         Plain-language events, the six-step journey, what-if on policy lines

@@ -22,6 +22,7 @@ import { Moments } from './Moments';
 import { Outputs } from './Outputs';
 import { PolicyContext } from './policy-context';
 import { PolicySheet } from './PolicySheet';
+import { Records } from './Records';
 import { Scoreboard } from './Scoreboard';
 import { Stream } from './Stream';
 import { TicketCard } from './TicketCard';
@@ -63,6 +64,9 @@ export default function Console() {
   const [flash, setFlash] = useState(0);
   const [guide, setGuide] = useState(false);
   const [outputsFor, setOutputsFor] = useState<string | null>(null);
+  const [outputsTab, setOutputsTab] = useState<'status' | 'brief' | 'replies'>('status');
+  const [view, setView] = useState<'storm' | 'records'>('storm');
+  const [recordId, setRecordId] = useState<string | null>(null);
   const [replies, setReplies] = useState<Record<string, PersonalReply>>({});
   const [sentReplies, setSentReplies] = useState<Record<string, boolean>>({});
   const [replyBusy, setReplyBusy] = useState<string | null>(null);
@@ -215,6 +219,8 @@ export default function Console() {
       setSent({});
       setBoard(false);
       setOutputsFor(null);
+      setView('storm');
+      setRecordId(null);
       setReplies({});
       setSentReplies({});
       setReplyBusy(null);
@@ -352,6 +358,26 @@ export default function Console() {
     [outInc, state.tickets, state.incidents, state.calls, policy, sourceWord],
   );
 
+  const docsFor = useCallback(
+    (inc: Incident) => ({
+      status: statusPageHtml(inc, state.tickets, state.incidents, policy, sourceWord),
+      brief: briefHtml(inc, state.tickets, state.incidents, state.calls, policy, sourceWord),
+      markdown: incidentReport(inc, state.tickets, state.incidents, state.calls, policy, sourceWord),
+    }),
+    [state.tickets, state.incidents, state.calls, policy, sourceWord],
+  );
+  const records = view === 'records' && started;
+  /** In Records, choosing an incident opens its record; choosing a ticket opens the ticket drawer. */
+  const select = useCallback(
+    (s: Selection) => {
+      if (view === 'records' && s?.kind === 'incident') {
+        setRecordId(s.id);
+        setSelected(null);
+      } else setSelected(s);
+    },
+    [view],
+  );
+
   /** A reply to one reporter: the saved one in a recorded run, otherwise Fill then Verify, live. */
   const draftReply = useCallback(
     async (inc: Incident, ticketId: string) => {
@@ -437,6 +463,24 @@ export default function Console() {
             {source.word}
           </span>
         )}
+        {started && (
+          <div className="seg" role="group" aria-label="View">
+            <button type="button" aria-pressed={view === 'storm'} onClick={() => setView('storm')}>
+              Storm
+            </button>
+            <button
+              type="button"
+              aria-pressed={view === 'records'}
+              onClick={() => {
+                setSelected(null);
+                setRecordId((r) => r ?? (selected?.kind === 'incident' ? selected.id : null));
+                setView('records');
+              }}
+            >
+              Records
+            </button>
+          </div>
+        )}
         <div className="spacer" />
         {started && (
           <span className="pill hide-s" title="Summed from the X-Clocked headers on every call">
@@ -517,10 +561,10 @@ export default function Console() {
         canFile={canLive}
         busy={busy !== null || running}
         onFile={file}
-        away={!started}
+        away={!started || records}
       />
 
-      <section className={`card glass ${incident || ticket ? '' : 'away'}`} aria-label="Detail">
+      <section className={`card glass ${ticket || (incident && !records) ? '' : 'away'} ${records ? 'drawer' : ''}`} aria-label="Detail">
         {state.incidents.length > 1 && !ticket && (
           <div className="switch" role="tablist" aria-label="Incidents">
             {state.incidents.map((i) => {
@@ -536,8 +580,8 @@ export default function Console() {
           </div>
         )}
         {ticket ? (
-          <TicketCard ticket={ticket} incidents={state.incidents} calls={state.calls} onSelect={setSelected} />
-        ) : incident ? (
+          <TicketCard ticket={ticket} incidents={state.incidents} calls={state.calls} onSelect={select} />
+        ) : incident && !records ? (
           <IncidentCard
             key={incident.id}
             incident={incident}
@@ -552,7 +596,10 @@ export default function Console() {
             onDismiss={() => dismiss(incident)}
             onVerify={(d) => verify(incident, d)}
             onSend={() => setSent((x) => ({ ...x, [incident.id]: { at: now, to: incident.memberIds.length } }))}
-            onExport={() => setOutputsFor(incident.id)}
+            onExport={() => {
+              setOutputsTab('status');
+              setOutputsFor(incident.id);
+            }}
           />
         ) : null}
       </section>
@@ -575,13 +622,37 @@ export default function Console() {
         onReset={() => reset()}
         onSpeed={setSpeed}
         onSelect={setSelected}
-        away={!started}
+        away={!started || records}
       />
 
-      {started && <Moments events={events} onSelect={setSelected} quiet={Boolean(error) || board || guide || policyOpen || Boolean(outputsFor)} />}
-      {board && mode && <Scoreboard tickets={state.tickets} incidents={state.incidents} calls={state.calls} mode={mode} simulated={simulated} onClose={() => setBoard(false)} />}
+      {records && (
+        <Records
+          tickets={state.tickets}
+          incidents={state.incidents}
+          calls={state.calls}
+          events={events}
+          replies={replies}
+          selectedId={recordId}
+          simulated={simulated}
+          docsFor={docsFor}
+          onSelect={setRecordId}
+          onTicket={(id) => setSelected({ kind: 'ticket', id })}
+          onOutputs={(id, tab) => {
+            setOutputsTab(tab);
+            setOutputsFor(id);
+          }}
+        />
+      )}
+      {started && <Moments events={events} onSelect={setSelected} quiet={Boolean(error) || board || guide || policyOpen || Boolean(outputsFor) || records} />}
+      {board && mode && <Scoreboard tickets={state.tickets} incidents={state.incidents} calls={state.calls} mode={mode} simulated={simulated} onClose={() => setBoard(false)} onRecords={() => {
+            setBoard(false);
+            setSelected(null);
+            setView('records');
+          }} />}
       {outInc && outDocs && (
         <Outputs
+          key={`${outInc.id}-${outputsTab}`}
+          initialTab={outputsTab}
           incident={outInc}
           tickets={state.tickets}
           statusHtml={outDocs.status}

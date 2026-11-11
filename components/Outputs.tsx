@@ -26,6 +26,7 @@ function save(name: string, text: string, type: string) {
  */
 export function Outputs(props: {
   incident: Incident;
+  initialTab?: Tab;
   tickets: TicketRecord[];
   statusHtml: string;
   briefHtml: string;
@@ -40,7 +41,7 @@ export function Outputs(props: {
 }) {
   const P = usePolicy();
   const inc = props.incident;
-  const [tab, setTab] = useState<Tab>('status');
+  const [tab, setTab] = useState<Tab>(props.initialTab ?? 'status');
   const frame = useRef<HTMLIFrameElement>(null);
   const slug = `${inc.id.toLowerCase()}-${incidentName(inc).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
   useEffect(() => {
