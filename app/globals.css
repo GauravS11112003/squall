@@ -2852,6 +2852,239 @@ input[type='range']::-moz-range-thumb {
   height: 14px;
 }
 
+/* ------------------------------------------------------------------ outputs */
+
+.sheet.outputs {
+  width: min(1120px, 100%);
+  height: min(860px, calc(100dvh - 48px));
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 14px;
+  padding: 28px 30px 26px;
+  overflow: hidden;
+}
+
+.out-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding-right: 40px;
+}
+
+.out-head h2 {
+  font-size: 30px;
+  max-width: none;
+}
+
+.out-head p {
+  margin-top: 6px;
+  color: var(--ink-2);
+  font-size: 14.5px;
+  max-width: 56ch;
+}
+
+.out-head .seg {
+  height: 40px;
+  flex: none;
+}
+
+.out-head .seg button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 14px;
+  font-size: 13.5px;
+  font-weight: 550;
+}
+
+.out-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.out-bar .fine {
+  max-width: 60ch;
+}
+
+.out-bar .actions,
+.reply .actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.out-bar .btn {
+  height: 36px;
+  font-size: 13.5px;
+  padding: 0 13px;
+}
+
+/* the document, shown the way it will be seen: in a browser window */
+.out-browser {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--white);
+  border: 1px solid var(--line-2);
+  box-shadow: 0 30px 60px -34px rgba(10, 15, 28, 0.45);
+}
+
+.out-chrome {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 14px;
+  background: #eef1f6;
+  border-bottom: 1px solid var(--line);
+}
+
+.out-chrome i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #cfd5e0;
+}
+
+.out-chrome span {
+  margin-left: 12px;
+  flex: 1;
+  max-width: 440px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: var(--white);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.out-browser iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: var(--paper);
+}
+
+.out-replies {
+  grid-row: 2 / -1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding-right: 4px;
+}
+
+.reply {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 14px 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.reply-top {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.reply-top b {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.reply-top b span {
+  font-weight: 450;
+  color: var(--ink-3);
+  margin-left: 6px;
+}
+
+.reply-top p {
+  font-size: 13.5px;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reply-top em {
+  font-style: normal;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--tone-ink);
+  background: color-mix(in srgb, var(--tone) 14%, white);
+  padding: 4px 10px;
+  border-radius: 999px;
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reply-body {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--paper);
+  box-shadow: inset 3px 0 0 var(--tone);
+}
+
+.reply-text {
+  font-size: 15.5px;
+  line-height: 1.5;
+  letter-spacing: -0.012em;
+}
+
+.reply-claims {
+  display: grid;
+  gap: 5px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+
+.reply-claims li {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+}
+
+.reply .btn {
+  height: 38px;
+  font-size: 13.5px;
+}
+
+@media (max-width: 860px) {
+  .out-head,
+  .out-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .reply-top {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .reply-top em {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}
+
 /* ------------------------------------------------------------------ notices */
 
 .notice {

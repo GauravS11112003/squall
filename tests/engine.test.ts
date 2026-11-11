@@ -74,3 +74,26 @@ describe('policy lines and the story', () => {
     expect(journeyOf(held, run.incidents).map((s) => s.state)).toEqual(['done', 'stop', 'skip', 'skip', 'skip', 'skip']);
   });
 });
+
+describe('what goes out', () => {
+  it('builds a status page from supported claims only, a brief, and a checked personal reply', async () => {
+    const { statusPageHtml, briefHtml } = await import('../lib/outputs');
+    const { personalReply } = await import('../lib/engine');
+    const { resolvePolicy } = await import('../lib/policy');
+    const { KB_BY_ID } = await import('../data/kb');
+    const run = await runStorm(STORM, simApi(), KB);
+    const P = resolvePolicy();
+    const vpn = run.incidents.find((i) => i.memberIds.includes('T-1001'))!;
+    const status = statusPageHtml(vpn, run.tickets, run.incidents, P, 'test');
+    const v = vpn.response!.verification!;
+    for (const c of v.claims.filter((x) => x.counted && x.supported < P.claimSupport)) expect(status).not.toContain(c.claim);
+    for (const c of v.claims.filter((x) => x.counted && x.supported >= P.claimSupport)) expect(status).toContain(c.claim.replace(/&/g, '&amp;'));
+    expect(status).not.toContain('Dana Whitfield');
+    expect(briefHtml(vpn, run.tickets, run.incidents, run.calls, P, 'test')).toContain('KB-110');
+    const t = run.tickets.find((x) => x.id === 'T-1014')!;
+    const r = await personalReply(simApi(), { ticket: { id: t.id, masked: t.masked! }, passages: [KB_BY_ID['KB-102']], incidentId: vpn.id, at: t.at });
+    expect(r.reply.text.length).toBeGreaterThan(20);
+    expect(r.reply.verification).not.toBeNull();
+    expect(r.calls.map((c) => c.endpoint)).toEqual(['fill', 'grounding']);
+  });
+});

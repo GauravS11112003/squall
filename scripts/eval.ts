@@ -9,7 +9,8 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { KB } from '../data/kb';
 import { STORM } from '../data/storm';
 import { hasKey, liveApi } from '../lib/api';
-import { declareByManager } from '../lib/engine';
+import { declareByManager, personalReply } from '../lib/engine';
+import { KB_BY_ID } from '../data/kb';
 import { loadEnv } from '../lib/env';
 import { baseline, costOf, score } from '../lib/metrics';
 import { priorOf, runStorm } from '../lib/run';
@@ -38,7 +39,20 @@ for (const inc of run.incidents.filter((i) => i.status === 'review')) {
   console.log(`${inc.id}  manager declare recorded (${r.calls.reduce((a, c) => a + (c.credits ?? 0), 0)} cr)`);
 }
 
-const allCalls = [...run.calls, ...actions.flatMap((a) => a.calls)];
+// Personal replies for the reporters who mentioned a deadline, so the recorded demo can show them.
+const replies: NonNullable<Recording['replies']> = {};
+const finalIncidents = run.incidents.map((i) => actions.find((a) => a.incidentId === i.id)?.incident ?? i);
+for (const inc of finalIncidents.filter((i) => i.status === 'declared' && i.response?.reply)) {
+  const due = run.tickets.filter((t) => t.incidentId === inc.id && t.masked && t.facts.impact?.value).slice(0, 4);
+  for (const t of due) {
+    const ids = t.sent.length ? [t.sent[t.sent.length - 1]] : inc.response!.reply!.passageIds;
+    const r = await personalReply(api, { ticket: { id: t.id, masked: t.masked! }, passages: ids.map((id) => KB_BY_ID[id]).filter(Boolean), incidentId: inc.id, at: t.at });
+    replies[t.id] = r;
+    console.log(`${t.id}  personal reply ${r.reply.verification?.sendable ? 'checked' : 'held back'}: ${r.reply.text.slice(0, 90)}`);
+  }
+}
+
+const allCalls = [...run.calls, ...actions.flatMap((a) => a.calls), ...Object.values(replies).flatMap((r) => r.calls)];
 const results = {
   ranAt: new Date().toISOString(),
   wallSeconds: Math.round((Date.now() - started) / 1000),
@@ -55,6 +69,7 @@ const recording: Recording = {
   meta: { mode: 'live', recordedAt: results.ranAt, sdk: 'clocked-sdk 0.7.0', note: 'Every probability, span, timing and credit count in this file is an unedited Clocked API response.' },
   steps: run.steps,
   actions,
+  replies,
 };
 writeFileSync('public/recordings/latest.json', JSON.stringify(recording));
 console.log('\n' + JSON.stringify({ squall: results.squall, baseline: results.baseline, cost: { credits: results.cost.credits, medianModelMs: results.cost.medianModelMs } }, null, 2));

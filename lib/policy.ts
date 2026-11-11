@@ -114,6 +114,22 @@ export const DRAFT_FIELDS = {
   },
 };
 
+export const REPLY_FIELDS = {
+  acknowledgement: {
+    type: 'generate' as const,
+    description: 'One sentence to the employee acknowledging what they reported, and their deadline or blocked work if their ticket mentions one, in plain words taken from their ticket',
+    max_tokens: 44,
+  },
+  step: {
+    type: 'generate' as const,
+    description: 'One sentence telling them what to do now, taken only from the knowledge base passage',
+    max_tokens: 60,
+  },
+};
+
+export const REPLY_INSTRUCTIONS =
+  'You are replying to one employee whose IT fault is now a known incident. Use only what their ticket and the knowledge base passage say. Do not promise a fix time and do not add a greeting or a name.';
+
 export const VERIFY_QUESTION = 'What is failing, who is affected, and what should affected employees do now?';
 
 export type Policy = { -readonly [K in keyof typeof POLICY]: number };

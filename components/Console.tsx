@@ -7,17 +7,19 @@ import { STORM } from '@/data/storm';
 import { costOf } from '@/lib/metrics';
 import { resolvePolicy } from '@/lib/policy';
 import type { PolicyOverrides } from '@/lib/policy';
+import { briefHtml, statusPageHtml } from '@/lib/outputs';
 import { incidentReport } from '@/lib/report';
 import { applyStep, priorOf } from '@/lib/run';
 import type { StormState } from '@/lib/run';
 import { journeyOf, storyOf } from '@/lib/story';
-import type { CallLog, Incident, Mode, RawTicket, Recording, StepOutput } from '@/lib/types';
+import type { CallLog, Incident, Mode, PersonalReply, RawTicket, Recording, StepOutput } from '@/lib/types';
 import { incidentName, incidentTone, pct } from '@/lib/ui';
 import { Dock } from './Dock';
 import { Guide } from './Guide';
 import { IncidentCard } from './IncidentCard';
 import { Landing } from './Landing';
 import { Moments } from './Moments';
+import { Outputs } from './Outputs';
 import { PolicyContext } from './policy-context';
 import { PolicySheet } from './PolicySheet';
 import { Scoreboard } from './Scoreboard';
@@ -60,6 +62,10 @@ export default function Console() {
   const [still, setStill] = useState(false);
   const [flash, setFlash] = useState(0);
   const [guide, setGuide] = useState(false);
+  const [outputsFor, setOutputsFor] = useState<string | null>(null);
+  const [replies, setReplies] = useState<Record<string, PersonalReply>>({});
+  const [sentReplies, setSentReplies] = useState<Record<string, boolean>>({});
+  const [replyBusy, setReplyBusy] = useState<string | null>(null);
   const [policyOpen, setPolicyOpen] = useState(false);
   const [overrides, setOverrides] = useState<PolicyOverrides>({});
   const policy = useMemo(() => resolvePolicy(overrides), [overrides]);
@@ -208,6 +214,10 @@ export default function Console() {
       setBusy(null);
       setSent({});
       setBoard(false);
+      setOutputsFor(null);
+      setReplies({});
+      setSentReplies({});
+      setReplyBusy(null);
       commit(EMPTY);
       if (nextMode) setMode(nextMode);
     },
@@ -328,24 +338,53 @@ export default function Console() {
     return { title: 'Ready when you are', detail: 'Press play, or the right arrow to read one ticket at a time.', tone: 'slate', reading: false };
   }, [pending, lastTicket, events]);
 
-  const exportReport = useCallback(
-    (inc: Incident) => {
-      const s = ref.current.state;
-      const from = simulated ? 'the offline simulator (not Clocked)' : mode === 'replay' ? 'a recorded live run on the Clocked API' : 'the Clocked API, live';
-      const blob = new Blob([incidentReport(inc, s.tickets, s.incidents, s.calls, policy, from)], { type: 'text/markdown' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${inc.id.toLowerCase()}-${incidentName(inc).toLowerCase().replace(/[^a-z0-9]+/g, '-')}-report.md`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+  const sourceWord = simulated ? 'the offline simulator (not Clocked)' : mode === 'replay' ? 'a recorded live run on the Clocked API' : 'the Clocked API, live';
+  const outInc = outputsFor ? state.incidents.find((i) => i.id === outputsFor) : undefined;
+  const outDocs = useMemo(
+    () =>
+      outInc
+        ? {
+            status: statusPageHtml(outInc, state.tickets, state.incidents, policy, sourceWord),
+            brief: briefHtml(outInc, state.tickets, state.incidents, state.calls, policy, sourceWord),
+            markdown: incidentReport(outInc, state.tickets, state.incidents, state.calls, policy, sourceWord),
+          }
+        : null,
+    [outInc, state.tickets, state.incidents, state.calls, policy, sourceWord],
+  );
+
+  /** A reply to one reporter: the saved one in a recorded run, otherwise Fill then Verify, live. */
+  const draftReply = useCallback(
+    async (inc: Incident, ticketId: string) => {
+      const saved = ref.current.mode === 'replay' ? recording?.replies?.[ticketId] : null;
+      if (saved) {
+        setReplies((x) => ({ ...x, [ticketId]: saved.reply }));
+        commit({ ...ref.current.state, calls: [...ref.current.state.calls, ...saved.calls] });
+        return;
+      }
+      const t = ref.current.state.tickets.find((x) => x.id === ticketId);
+      if (!t?.masked) return;
+      const token = ref.current.token;
+      setReplyBusy(ticketId);
+      try {
+        const passageIds = t.sent.length ? [t.sent[t.sent.length - 1]] : inc.response?.reply?.passageIds ?? [];
+        const res = await fetch('/api/reply', { method: 'POST', headers: headers(), body: JSON.stringify({ ticket: { id: t.id, masked: t.masked }, passageIds, incidentId: inc.id, at: t.at, policy: ref.current.overrides }) });
+        const data = await res.json();
+        if (ref.current.token !== token) return;
+        if (!res.ok) throw new Error(data?.error ?? `The server answered ${res.status}.`);
+        setReplies((x) => ({ ...x, [ticketId]: data.reply }));
+        commit({ ...ref.current.state, calls: [...ref.current.state.calls, ...data.calls] });
+      } catch (e) {
+        if (ref.current.token === token) setReplies((x) => ({ ...x, [ticketId]: { ticketId, text: '', passageIds: [], verification: null, error: e instanceof Error ? e.message : String(e) } }));
+      } finally {
+        if (ref.current.token === token) setReplyBusy(null);
+      }
     },
-    [mode, policy, simulated],
+    [commit, headers, recording],
   );
 
   // Space plays or pauses, the right arrow reads one ticket, ? opens the guide, Esc steps back.
-  const keys = useRef({ run, pause, canRun, done, started, running, sheet: board || guide || policyOpen });
-  keys.current = { run, pause, canRun, done, started, running, sheet: board || guide || policyOpen };
+  const keys = useRef({ run, pause, canRun, done, started, running, sheet: board || guide || policyOpen || Boolean(outputsFor) });
+  keys.current = { run, pause, canRun, done, started, running, sheet: board || guide || policyOpen || Boolean(outputsFor) };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
@@ -513,7 +552,7 @@ export default function Console() {
             onDismiss={() => dismiss(incident)}
             onVerify={(d) => verify(incident, d)}
             onSend={() => setSent((x) => ({ ...x, [incident.id]: { at: now, to: incident.memberIds.length } }))}
-            onExport={() => exportReport(incident)}
+            onExport={() => setOutputsFor(incident.id)}
           />
         ) : null}
       </section>
@@ -539,8 +578,24 @@ export default function Console() {
         away={!started}
       />
 
-      {started && <Moments events={events} onSelect={setSelected} quiet={Boolean(error) || board || guide || policyOpen} />}
+      {started && <Moments events={events} onSelect={setSelected} quiet={Boolean(error) || board || guide || policyOpen || Boolean(outputsFor)} />}
       {board && mode && <Scoreboard tickets={state.tickets} incidents={state.incidents} calls={state.calls} mode={mode} simulated={simulated} onClose={() => setBoard(false)} />}
+      {outInc && outDocs && (
+        <Outputs
+          incident={outInc}
+          tickets={state.tickets}
+          statusHtml={outDocs.status}
+          briefHtml={outDocs.brief}
+          markdown={outDocs.markdown}
+          replies={replies}
+          sentReplies={sentReplies}
+          busyId={replyBusy}
+          canDraft={(id) => canLive || Boolean(mode === 'replay' && recording?.replies?.[id])}
+          onDraft={(id) => draftReply(outInc, id)}
+          onSendReply={(id) => setSentReplies((x) => ({ ...x, [id]: true }))}
+          onClose={() => setOutputsFor(null)}
+        />
+      )}
       {guide && <Guide onClose={() => setGuide(false)} />}
       {policyOpen && <PolicySheet overrides={overrides} onChange={setOverrides} incidents={state.incidents} tickets={state.tickets} applies={mode !== 'replay'} onClose={() => setPolicyOpen(false)} />}
     </PolicyContext.Provider>

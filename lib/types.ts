@@ -232,6 +232,15 @@ export type StepOutput = {
   calls: CallLog[];
 };
 
+/** A reply to one reporter, drafted by Fill from their own ticket and checked by Verify. */
+export type PersonalReply = {
+  ticketId: string;
+  text: string;
+  passageIds: string[];
+  verification: Verification | null;
+  error: string | null;
+};
+
 export type Recording = {
   meta: {
     mode: 'live' | 'sim';
@@ -242,6 +251,8 @@ export type Recording = {
   steps: StepOutput[];
   /** What declaring by hand produced for incidents the policy left to a person. */
   actions: { incidentId: string; incident: Incident; calls: CallLog[] }[];
+  /** Personal replies drafted during the recorded run, by ticket id. */
+  replies?: Record<string, { reply: PersonalReply; calls: CallLog[] }>;
 };
 
 export type KbPassage = {

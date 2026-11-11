@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, Download } from 'lucide-react';
+import { Check, Send } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { usePolicy } from './policy-context';
 import type { Incident, Mode, TicketRecord } from '@/lib/types';
@@ -134,8 +134,8 @@ export function IncidentCard(props: {
             {blockedCount > 0 && <sup>{blockedCount} blocked</sup>}
           </button>
         )}
-        <button type="button" className="export" onClick={props.onExport} title="Download this incident as a Markdown report">
-          <Download /> Report
+        <button type="button" className="export" onClick={props.onExport} title="Status page, incident brief and personal replies">
+          <Send /> Outputs
         </button>
       </div>
 

@@ -231,6 +231,9 @@ function fill(body: any) {
       source: 'generated',
     },
   };
+  const deadline = /customer demo at 9:30|payroll cutoff is 11am|shipping labels today|My demo is in 20 minutes|Payroll cutoff is at 11/.exec(t)?.[0];
+  fields.acknowledgement = { value: `You reported that ${vpn ? 'Harbor VPN will not connect' : 'Keyring is not sending the approval'}${deadline ? `, and that ${deadline}` : ''}.`, source: 'generated' };
+  fields.step = fields.action;
   return { model: 'simulator', fields: Object.fromEntries(Object.keys(body.fields).map((k) => [k, fields[k] ?? { value: null }])) };
 }
 

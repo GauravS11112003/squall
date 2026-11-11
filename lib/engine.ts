@@ -22,6 +22,8 @@ import {
   MATCH_INSTRUCTIONS,
   PII_ENTITIES,
   POLICY,
+  REPLY_FIELDS,
+  REPLY_INSTRUCTIONS,
   VERIFY_QUESTION,
   resolvePolicy,
 } from './policy';
@@ -40,6 +42,7 @@ import type {
   PairResult,
   PassageChoice,
   PassageQuote,
+  PersonalReply,
   PriorTicket,
   StepInput,
   StepOutput,
@@ -447,6 +450,49 @@ async function respond(ctx: Ctx, inc: Incident, members: PriorTicket[], kb: KbPa
     response.error = 'Verify did not answer, so the draft is unchecked and cannot be sent as it is.';
   }
   return response;
+}
+
+/**
+ * A reply to one reporter. Fill writes two sentences from that person's own ticket and
+ * the checked workaround; Verify then checks the reply against the same two sources,
+ * and it is only sendable when every claim is supported.
+ */
+export async function personalReply(
+  api: Api,
+  args: { ticket: { id: string; masked: string }; passages: KbPassage[]; incidentId: string; at: number; policy?: PolicyOverrides },
+): Promise<{ reply: PersonalReply; calls: CallLog[] }> {
+  const ctx: Ctx = { api, calls: [], at: args.at, seq: 0, ticketId: args.ticket.id, P: resolvePolicy(args.policy) };
+  const reply: PersonalReply = { ticketId: args.ticket.id, text: '', passageIds: args.passages.map((k) => k.id), verification: null, error: null };
+  if (!args.passages.length) {
+    reply.error = 'There is no checked workaround for this incident yet, so there is nothing to reply with.';
+    return { reply, calls: ctx.calls };
+  }
+  const text = ["THIS EMPLOYEE'S TICKET", args.ticket.masked, '', 'KNOWLEDGE BASE PASSAGE', ...args.passages.map((k) => k.text)].join('\n');
+  const fill = await call<FillResponse>(ctx, 'fill', `Draft a personal reply to ${args.ticket.id}`, { text: clip(text, 12000), fields: REPLY_FIELDS, instructions: REPLY_INSTRUCTIONS }, { incidentId: args.incidentId });
+  const part = (name: string) => {
+    const v = fill?.fields?.[name]?.value;
+    return v === null || v === undefined ? '' : String(v).trim();
+  };
+  reply.text = [part('acknowledgement'), part('step')].filter(Boolean).join(' ');
+  if (!fill || !reply.text) {
+    reply.error = 'Fill did not return a draft, so there is no reply. Write this one by hand.';
+    return { reply, calls: ctx.calls };
+  }
+  const g = await call<GroundingResponse>(
+    ctx,
+    'grounding',
+    `Check the reply to ${args.ticket.id} against their ticket and the workaround`,
+    {
+      documents: [{ id: args.ticket.id, text: args.ticket.masked }, ...args.passages.map((k) => ({ id: k.id, text: `${k.title}\n${k.text}` }))],
+      answer: clip(reply.text, 4000),
+      evidence: 'all',
+      threshold: ctx.P.claimSupport,
+    },
+    { incidentId: args.incidentId },
+  );
+  if (g) reply.verification = toVerification(reply.text, g, ctx.P.claimSupport);
+  else reply.error = 'Verify did not answer, so this reply is unchecked and cannot be sent as it is.';
+  return { reply, calls: ctx.calls };
 }
 
 /** Declares an incident by hand (the manager pressed Declare) and prepares the response. */
