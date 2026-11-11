@@ -549,7 +549,6 @@ export default function Console() {
                 : null
         }
         onStart={() => run()}
-        onGuide={() => setGuide(true)}
       />
 
       {mode === 'live' && status?.needsCode && !started && (

@@ -1,6 +1,6 @@
 'use client';
 
-import { BookOpen, EyeOff, Gauge, GitMerge, ListFilter, Play, ScanText, ShieldCheck } from 'lucide-react';
+import { EyeOff, Gauge, GitMerge, ListFilter, Play, ScanText, ShieldCheck } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { STORM } from '@/data/storm';
@@ -13,6 +13,9 @@ import { CHANNEL, ChannelIcon } from './ChannelIcon';
  * Every excerpt is verbatim from data/storm.ts and the grouping shown is that
  * file's ground truth, not a model result.
  */
+/** The recorded walkthrough. It sits beside the start button with the same weight. */
+const DEMO_VIDEO = 'https://youtu.be/e2KCD5ms6NA';
+
 const PICKS: { id: string; excerpt: string; out?: { tone: 'slate' | 'red'; word: string } }[] = [
   { id: 'T-1004', excerpt: 'vpn ded again??' },
   { id: 'T-1008', excerpt: 'No puedo conectarme' },
@@ -68,7 +71,6 @@ export function Landing(props: {
   still: boolean;
   note: string | null;
   onStart: () => void;
-  onGuide: () => void;
 }) {
   const rows = PICKS.map((p) => ({ ...p, ticket: STORM.find((t) => t.id === p.id)! }));
   const joined = rows.filter((r) => !r.out).length;
@@ -99,9 +101,13 @@ export function Landing(props: {
                   Start the storm
                   <kbd>Space</kbd>
                 </button>
-                <button className="lp-how" type="button" onClick={props.onGuide} tabIndex={props.gone ? -1 : 0}>
-                  <BookOpen size={16} /> How to read it
-                </button>
+                <a className="lp-watch" href={DEMO_VIDEO} target="_blank" rel="noopener noreferrer" tabIndex={props.gone ? -1 : 0}>
+                  <span className="yt" aria-hidden="true">
+                    <Play size={16} fill="currentColor" strokeWidth={0} />
+                  </span>
+                  Watch the demo
+                  <kbd>YouTube</kbd>
+                </a>
               </div>
               {props.note && <small className="rise d2">{props.note}</small>}
             </>
