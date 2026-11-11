@@ -180,6 +180,22 @@ export default function Console() {
           setPending(null);
           absorb(out);
           await sleep(Math.max(140, 640 / fast));
+          // The recorded manager said yes at this point. Leave the question on screen for a beat, then apply the answer.
+          for (const a of recording?.actions?.filter((x) => x.afterStep === i) ?? []) {
+            const open = () => ref.current.state.incidents.some((x) => x.id === a.incidentId && x.status !== 'declared');
+            if (!open()) continue;
+            await sleep(Math.max(700, 2400 / fast));
+            if (ref.current.token !== token) return;
+            if (!open()) continue;
+            const s = ref.current.state;
+            const reply = a.incident.response?.reply?.passageIds;
+            commit({
+              tickets: reply ? s.tickets.map((t) => (t.incidentId === a.incidentId && !t.sent.length ? { ...t, sent: reply } : t)) : s.tickets,
+              incidents: s.incidents.map((x) => (x.id === a.incidentId ? a.incident : x)),
+              calls: [...s.calls, ...a.calls],
+            });
+            setFlash((n) => n + 1);
+          }
         } else {
           const ok = await liveStep(STORM[i]);
           if (ref.current.token !== token) return;
@@ -197,7 +213,7 @@ export default function Console() {
         setRunning(false);
       }
     },
-    [absorb, liveStep, recording],
+    [absorb, commit, liveStep, recording],
   );
 
   const pause = useCallback(() => {

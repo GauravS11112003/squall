@@ -97,3 +97,52 @@ describe('what goes out', () => {
     expect(r.calls.map((c) => c.endpoint)).toEqual(['fill', 'grounding']);
   });
 });
+
+describe('one fault worded two ways', () => {
+  // Rerank on the live API read some VPN reports as "a different case" from others. This wrapper
+  // replays that: for the listed queries, the listed earlier tickets come back as skipped.
+  const blind = (hide: Record<string, string[]>): Api => {
+    const sim = simApi();
+    return {
+      mode: 'sim',
+      request: async (e, b) => {
+        const res: any = await sim.request(e, b);
+        const body = b as any;
+        if (e !== 'pipeline') return res;
+        const queryId = Object.keys(hide).find((id) => String(body.text).startsWith(STORM.find((s) => s.id === id)!.text.slice(0, 24)));
+        if (!queryId) return res;
+        for (const st of res.data?.steps ?? res.steps ?? []) {
+          for (const r of st.result?.results ?? []) {
+            if (hide[queryId].includes(r.id)) Object.assign(r, { action: 'skip', reason: 'different_case', relevance_score: 0.05 });
+          }
+        }
+        return res;
+      },
+    };
+  };
+
+  it('pulls a lone ticket in when a later ticket matches both it and the incident', async () => {
+    const run = await runStorm(STORM.slice(0, 9), blind({ 'T-1006': ['T-1001', 'T-1003', 'T-1004'] }), KB);
+    const byId = Object.fromEntries(run.tickets.map((t) => [t.id, t]));
+    const vpn = run.incidents.find((i) => i.memberIds.includes('T-1001'))!;
+    expect(run.incidents.filter((i) => i.memberIds.some((id) => TRUTH[id].incident === 'vpn'))).toHaveLength(1);
+    expect(byId['T-1006'].incidentId).toBe(vpn.id);
+    expect(byId['T-1006'].outcome).toContain('Pulled into');
+    expect(byId['T-1009'].incidentId).toBe(vpn.id);
+  });
+
+  it('folds two incidents into one when a ticket matches reports in both, and never reuses an id', async () => {
+    const run = await runStorm(
+      STORM.slice(0, 13),
+      blind({ 'T-1006': ['T-1001', 'T-1003', 'T-1004'], 'T-1008': ['T-1006'], 'T-1009': ['T-1001', 'T-1003', 'T-1004', 'T-1008'] }),
+      KB,
+    );
+    const vpnIncidents = run.incidents.filter((i) => i.memberIds.some((id) => TRUTH[id].incident === 'vpn'));
+    expect(vpnIncidents).toHaveLength(1);
+    expect(vpnIncidents[0].id).toBe('INC-1');
+    expect(vpnIncidents[0].absorbed).toEqual(['INC-2']);
+    expect(run.tickets.filter((t) => TRUTH[t.id].incident === 'vpn' && t.status !== 'held').every((t) => t.incidentId === 'INC-1')).toBe(true);
+    expect(new Set(run.incidents.map((i) => i.id)).size).toBe(run.incidents.length);
+    expect(run.incidents.some((i) => i.id === 'INC-2')).toBe(false);
+  });
+});

@@ -44,6 +44,8 @@ export type GuardResult = {
 export type Candidate = {
   id: string;
   kind: 'incident' | 'ticket';
+  /** The incident the candidate ticket belonged to when Rerank was asked. Null for a lone ticket. */
+  incidentId?: string | null;
   action: 'use' | 'expand' | 'skip';
   reason: string | null;
   relevance: number;
@@ -181,6 +183,8 @@ export type Incident = {
   /** Why the incident is in its current status. */
   reason: string;
   response: IncidentResponse | null;
+  /** Ids of incidents folded into this one after a ticket matched reports in both. */
+  absorbed?: string[];
 };
 
 export type CallLog = {
@@ -250,7 +254,8 @@ export type Recording = {
   };
   steps: StepOutput[];
   /** What declaring by hand produced for incidents the policy left to a person. */
-  actions: { incidentId: string; incident: Incident; calls: CallLog[] }[];
+  /** `afterStep` is the index of the step after which the recorded manager declared it. */
+  actions: { incidentId: string; incident: Incident; calls: CallLog[]; afterStep?: number }[];
   /** Personal replies drafted during the recorded run, by ticket id. */
   replies?: Record<string, { reply: PersonalReply; calls: CallLog[] }>;
 };

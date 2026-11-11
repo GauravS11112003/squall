@@ -9,8 +9,12 @@ export const POLICY = {
   guardHold: 0.5,
   /** Rerank: a candidate needs at least this relevance to be compared. */
   candidateFloor: 0.35,
-  /** Rerank: how many candidates go on to Compare. */
-  maxCompared: 2,
+  /** Rerank: candidates from at most this many groups (an incident, or a lone ticket) go on to Compare. */
+  maxGroups: 3,
+  /** How many of an incident's reports are offered to Rerank, each as its own document. */
+  matchSample: 6,
+  /** Compare: when one ticket is at least this related to reports in two groups, the groups are one fault and are merged. */
+  bridgeRelated: 0.8,
   /** Compare: a ticket merges when Compare's `related` probability for the pair is at least this. */
   joinRelated: 0.6,
   /** Compare: a conflict finding at or above this confidence is recorded on the incident. */
@@ -27,8 +31,6 @@ export const POLICY = {
   claimSupport: 0.5,
   /** How many recent lone tickets are offered as match candidates. */
   loneWindow: 14,
-  /** How many of an incident's reports represent it in Rerank and Compare. */
-  representatives: 2,
 } as const;
 
 export const PII_ENTITIES = [
@@ -55,7 +57,7 @@ export const EXTRACT_FIELDS = {
 } as const;
 
 export const MATCH_INSTRUCTIONS =
-  'The query is a newly filed IT support ticket. Each document is either an open incident (several reports of one fault) or a single earlier ticket. A document answers the query only when it reports the same underlying fault: the same service failing in the same way during the same period, however it is worded and in whatever language. A how-to question, an access request, or the same service with a different fault is a different case.';
+  'The query is a newly filed IT support ticket. Each document is one earlier ticket. A document answers the query only when it reports the same underlying fault: the same service failing in the same way during the same period, however it is worded and in whatever language. A how-to question, an access request, or the same service with a different fault is a different case.';
 
 export const COMPARE_INSTRUCTIONS =
   'Each document is one IT support ticket. Two tickets are related when they report the same underlying fault: the same service failing in the same way during the same period, however they are worded and in whatever language. A how-to question, an access request, or a different problem with the same product is unrelated. Two related tickets conflict when they disagree on a fact, such as when the fault started, which sites are affected or which error is shown.';

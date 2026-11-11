@@ -190,16 +190,22 @@ function refreshIncident(inc: Incident, members: PriorTicket[]) {
   }
 }
 
-function representatives(inc: Incident, byId: Map<string, PriorTicket>): PriorTicket[] {
+/** Up to `n` of an incident's reports, spread across its history: the first, the latest and evenly between. */
+function sample(inc: Incident, byId: Map<string, PriorTicket>, n: number): PriorTicket[] {
   const ids = inc.memberIds;
-  const picks = [ids[0], ids[ids.length - 1], ids[Math.floor(ids.length / 2)]];
+  const picks = ids.length <= n ? ids : Array.from({ length: n }, (_, k) => ids[Math.round((k * (ids.length - 1)) / (n - 1))]);
   const out: PriorTicket[] = [];
   for (const id of picks) {
     const t = byId.get(id);
     if (t && !out.includes(t)) out.push(t);
-    if (out.length >= POLICY.representatives) break;
   }
   return out;
+}
+
+/** Incident ids are never reused, even after one incident is folded into another. */
+function nextIncidentId(incidents: Incident[]): string {
+  const used = incidents.flatMap((i) => [i.id, ...(i.absorbed ?? [])]).map((id) => Number(id.replace('INC-', '')) || 0);
+  return `INC-${Math.max(0, ...used) + 1}`;
 }
 
 function kbDocs(kb: KbPassage[]) {
@@ -636,17 +642,10 @@ export async function step(input: StepInput, api: Api, kb: KbPassage[]): Promise
   const threadInc = origin?.incidentId ? incidents.find((i) => i.id === origin.incidentId && i.status !== 'dismissed') : undefined;
   const open = incidents.filter((i) => i.status !== 'dismissed');
   const lone = prior.filter((p) => p.status === 'alone').slice(-POLICY.loneWindow);
-  const docs = threadInc ? [] : [
-    ...open.map((i) => ({
-      id: i.id,
-      title: i.title,
-      text: representatives(i, byId)
-        .map((r, n) => `Report ${n + 1}: ${clip(r.masked, 600)}`)
-        .join('\n'),
-      metadata: { reports: i.memberIds.length, sites: i.sites.slice(0, 4).join(', ') || 'not stated' },
-    })),
-    ...lone.map((p) => ({ id: p.id, text: clip(p.masked, 800) })),
-  ];
+  // Each report is its own document. A combined incident summary reads as "a different case" to Rerank
+  // as soon as its reports word the fault differently, so Squall never asks about a summary.
+  const offered = threadInc ? [] : [...open.flatMap((i) => sample(i, byId, POLICY.matchSample)), ...lone];
+  const docs = offered.map((p) => ({ id: p.id, text: clip(p.masked, 800) }));
   const steps: object[] = [{ extract: { fields: EXTRACT_FIELDS }, name: 'extract' }];
   if (docs.length) steps.push({ rerank: { query: masked, documents: docs, instructions: MATCH_INSTRUCTIONS }, name: 'match' });
   const read = await call<PipelineResponse>(
@@ -673,7 +672,8 @@ export async function step(input: StepInput, api: Api, kb: KbPassage[]): Promise
       const id = r.id ?? docs[r.index].id;
       return {
         id,
-        kind: id.startsWith('INC-') ? 'incident' : 'ticket',
+        kind: 'ticket',
+        incidentId: byId.get(id)?.incidentId ?? null,
         action: r.action,
         reason: r.action === 'skip' ? r.reason : null,
         relevance: r.relevance_score,
@@ -682,23 +682,32 @@ export async function step(input: StepInput, api: Api, kb: KbPassage[]): Promise
     });
   }
   const findIncident = async (): Promise<{ inc: Incident; why: string } | null> => {
-    const shortlist = t.candidates.filter((c) => c.action !== 'skip' && c.relevance >= POLICY.candidateFloor).slice(0, POLICY.maxCompared);
+    // Candidates arrive best first. Take the best report from each of the closest groups
+    // (an incident or a lone ticket), and a second report from the closest group.
+    const groupOf = (c: Candidate) => c.incidentId ?? c.id;
+    const groups: string[] = [];
+    const shortlist: Candidate[] = [];
+    for (const c of t.candidates) {
+      if (c.action === 'skip' || c.relevance < POLICY.candidateFloor) continue;
+      const g = groupOf(c);
+      if (!groups.includes(g)) {
+        if (groups.length >= POLICY.maxGroups) continue;
+        groups.push(g);
+      }
+      if (shortlist.filter((x) => groupOf(x) === g).length < (g === groups[0] ? 2 : 1)) shortlist.push(c);
+    }
     if (!shortlist.length) {
       const near = t.candidates[0];
       t.outcome = !t.candidates.length
         ? 'First of its kind: nothing is open to compare it with.'
         : near?.reason === 'different_case'
-          ? `On its own. Rerank read ${near.id} as the same topic but a different case.`
+          ? `On its own. Rerank read ${near.incidentId ?? near.id} as the same topic but a different case.`
           : 'On its own. No open incident or earlier ticket reports the same fault.';
       return null;
     }
 
     // 3. Compare the ticket with the shortlisted reports. This is the decision to merge.
-    const others: PriorTicket[] = [];
-    for (const c of shortlist) {
-      const picks = c.kind === 'incident' ? representatives(incidents.find((i) => i.id === c.id)!, byId) : [byId.get(c.id)!];
-      for (const p of picks) if (p && !others.includes(p)) others.push(p);
-    }
+    const others = shortlist.map((c) => byId.get(c.id)!).filter(Boolean);
     const cmp = await call<CompareResponse>(ctx, 'compare', `Compare with ${shortlist.map((c) => c.id).join(' and ')}`, {
       documents: [{ id: t.id, text: masked }, ...others.map((o) => ({ id: o.id, text: clip(o.masked, 3800) }))],
       instructions: COMPARE_INSTRUCTIONS,
@@ -740,13 +749,20 @@ export async function step(input: StepInput, api: Api, kb: KbPassage[]): Promise
       return null;
     }
 
-    // 4. Merge: into the incident the best match belongs to, or start one with a lone ticket.
+    // 4. Merge. The best match names the group. When Compare also reads the ticket as the same fault as
+    // reports in another group, the two groups are one fault: the ticket is the evidence that joins them.
     const best = joinable[0];
-    let found = best.incidentId ? incidents.find((i) => i.id === best.incidentId) : undefined;
+    const linked = [best, ...joinable.slice(1).filter((p) => joinProbability(p) >= POLICY.bridgeRelated)];
+    const liveInc = (p: PairResult) => incidents.find((i) => i.id === byId.get(p.with)?.incidentId);
+    const hits = [...new Set(linked.map(liveInc).filter(Boolean) as Incident[])];
+    // Keep a declared incident if there is one, otherwise the oldest.
+    let found: Incident | undefined = hits.find((i) => i.status === 'declared') ?? hits.sort((x, y) => incidents.indexOf(x) - incidents.indexOf(y))[0];
+    const notes: string[] = [];
+    const bridged: string[] = [];
     if (!found) {
       const other = byId.get(best.with)!;
       found = {
-        id: `INC-${incidents.length + 1}`,
+        id: nextIncidentId(incidents),
         createdAt: raw.at,
         title: 'Unnamed fault',
         memberIds: [other.id],
@@ -766,8 +782,45 @@ export async function step(input: StepInput, api: Api, kb: KbPassage[]): Promise
       other.status = 'joined';
       moved.push({ id: other.id, incidentId: found.id, outcome: `Grouped with ${t.id}: Compare read them as the same fault.`, sent: other.sent });
     }
-    const tail = best.relation === 'conflicting' ? ', with a disagreement' : '';
-    return { inc: found, why: `Compare read it as the same fault as ${best.with}${tail} (${pct(joinProbability(best))} related).` };
+    const target = found;
+    const sentNow = target.status === 'declared' ? target.response?.reply?.passageIds ?? [] : [];
+    for (const dead of hits.filter((i) => i !== target)) {
+      for (const id of dead.memberIds) {
+        const m = byId.get(id);
+        if (!m) continue;
+        m.incidentId = target.id;
+        if (!m.sent.length && sentNow.length) m.sent = sentNow;
+        moved.push({ id, incidentId: target.id, outcome: `+Now in ${target.id}: ${t.id} matched reports in both ${dead.id} and ${target.id}, so they are one fault.`, sent: m.sent });
+      }
+      target.memberIds.push(...dead.memberIds);
+      target.conflicts.push(...dead.conflicts);
+      target.absorbed = [...(target.absorbed ?? []), dead.id, ...(dead.absorbed ?? [])];
+      incidents.splice(incidents.indexOf(dead), 1);
+      notes.push(`${dead.id} was folded into ${target.id}`);
+      bridged.push(...linked.filter((p) => p.incidentId === dead.id).map((p) => p.with));
+    }
+    for (const p of linked) {
+      const other = byId.get(p.with);
+      if (!other || other.incidentId) continue;
+      other.incidentId = target.id;
+      other.status = 'joined';
+      if (sentNow.length) other.sent = sentNow;
+      target.memberIds.push(other.id);
+      moved.push({
+        id: other.id,
+        incidentId: target.id,
+        outcome: `Pulled into ${target.id}: Compare read ${t.id} as the same fault as this ticket (${pct(joinProbability(p))} related) and as the incident's reports.${sentNow.length ? ' The checked workaround was sent.' : ''}`,
+        sent: other.sent,
+      });
+      notes.push(`${other.id} was pulled in`);
+      bridged.push(other.id);
+    }
+    const when = (id: string) => byId.get(id)?.at ?? raw.at;
+    target.memberIds.sort((x, y) => when(x) - when(y));
+    const anchor = linked.find((p) => p.incidentId === target.id) ?? best;
+    const tail = anchor.relation === 'conflicting' ? ', with a disagreement' : '';
+    const also = notes.length ? ` It matched ${[...new Set(bridged)].join(' and ')} too, so ${notes.join(' and ')}.` : '';
+    return { inc: target, why: `Compare read it as the same fault as ${anchor.with}${tail} (${pct(joinProbability(anchor))} related).${also}` };
   };
   const hit = threadInc
     ? { inc: threadInc, why: `it is a reply in ${origin!.id}'s thread.` }

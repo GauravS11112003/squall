@@ -9,12 +9,12 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { KB } from '../data/kb';
 import { STORM } from '../data/storm';
 import { hasKey, liveApi } from '../lib/api';
-import { declareByManager, personalReply } from '../lib/engine';
+import { declareByManager, personalReply, step } from '../lib/engine';
 import { KB_BY_ID } from '../data/kb';
 import { loadEnv } from '../lib/env';
 import { baseline, costOf, score } from '../lib/metrics';
-import { priorOf, runStorm } from '../lib/run';
-import type { Recording } from '../lib/types';
+import { applyStep, priorOf, type StormState } from '../lib/run';
+import type { Recording, StepOutput } from '../lib/types';
 
 loadEnv();
 if (!hasKey()) {
@@ -23,25 +23,37 @@ if (!hasKey()) {
 }
 const api = await liveApi();
 const started = Date.now();
-const run = await runStorm(STORM, api, KB, (out) => {
+// The storm, one ticket at a time. When Squall asks the incident manager, the recorded manager says yes
+// straight away, so the rest of the run shows what a declared incident does: the checked workaround
+// goes out and follow-ups get the next step.
+let state: StormState = { tickets: [], incidents: [], calls: [] };
+const steps: StepOutput[] = [];
+const actions: Recording['actions'] = [];
+for (const [index, ticket] of STORM.entries()) {
+  const out = await step({ ticket, incidents: state.incidents, prior: priorOf(state) }, api, KB);
+  state = applyStep(state, out);
+  steps.push(out);
   const t = out.ticket;
   const credits = out.calls.reduce((a, c) => a + (c.credits ?? 0), 0);
   console.log(`${t.id}  ${t.status.padEnd(10)} ${String(credits).padStart(4)} cr  ${t.outcome}`);
-});
-
-// Incidents the policy left for a person: record what happens when the manager declares them,
-// so the recorded demo can show that path too.
-const actions: Recording['actions'] = [];
-for (const inc of run.incidents.filter((i) => i.status === 'review')) {
-  const members = priorOf(run).filter((p) => p.incidentId === inc.id);
-  const r = await declareByManager(api, { incident: inc, members, kb: KB, at: STORM[STORM.length - 1].at });
-  actions.push({ incidentId: inc.id, incident: r.incident, calls: r.calls });
-  console.log(`${inc.id}  manager declare recorded (${r.calls.reduce((a, c) => a + (c.credits ?? 0), 0)} cr)`);
+  for (const inc of state.incidents.filter((i) => i.status === 'review')) {
+    const members = priorOf(state).filter((p) => p.incidentId === inc.id);
+    const r = await declareByManager(api, { incident: inc, members, kb: KB, at: ticket.at });
+    actions.push({ incidentId: inc.id, incident: r.incident, calls: r.calls, afterStep: index });
+    const reply = r.incident.response?.reply?.passageIds;
+    state = {
+      tickets: reply ? state.tickets.map((x) => (x.incidentId === inc.id && !x.sent.length ? { ...x, sent: reply } : x)) : state.tickets,
+      incidents: state.incidents.map((i) => (i.id === inc.id ? r.incident : i)),
+      calls: [...state.calls, ...r.calls],
+    };
+    console.log(`${inc.id}  the manager was asked and declared it (${r.calls.reduce((a, c) => a + (c.credits ?? 0), 0)} cr)`);
+  }
 }
+const run = { ...state, steps };
 
 // Personal replies for the reporters who mentioned a deadline, so the recorded demo can show them.
 const replies: NonNullable<Recording['replies']> = {};
-const finalIncidents = run.incidents.map((i) => actions.find((a) => a.incidentId === i.id)?.incident ?? i);
+const finalIncidents = run.incidents;
 for (const inc of finalIncidents.filter((i) => i.status === 'declared' && i.response?.reply)) {
   const due = run.tickets.filter((t) => t.incidentId === inc.id && t.masked && t.facts.impact?.value).slice(0, 4);
   for (const t of due) {
@@ -52,7 +64,7 @@ for (const inc of finalIncidents.filter((i) => i.status === 'declared' && i.resp
   }
 }
 
-const allCalls = [...run.calls, ...actions.flatMap((a) => a.calls), ...Object.values(replies).flatMap((r) => r.calls)];
+const allCalls = [...run.calls, ...Object.values(replies).flatMap((r) => r.calls)];
 const results = {
   ranAt: new Date().toISOString(),
   wallSeconds: Math.round((Date.now() - started) / 1000),
