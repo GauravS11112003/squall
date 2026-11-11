@@ -562,7 +562,7 @@ function Scene({ tickets, pending, incidents, selected, onSelect, still, idle, p
     const out: LinkSpec[] = [];
     for (const t of tickets) {
       if (t.status !== 'joined') continue;
-      const best = t.pairs.find((p) => p.relation === 'same' || p.relation === 'conflicting');
+      const best = [...t.pairs].filter((p) => p.relation !== 'unrelated').sort((a, b) => b.related - a.related)[0];
       if (best) out.push({ key: `m-${t.id}`, a: t.id, b: best.with, color: INK, lasting: false });
     }
     for (const inc of incidents) for (const c of inc.conflicts) out.push({ key: `c-${c.a}-${c.b}`, a: c.a, b: c.b, color: '#f97316', lasting: true });

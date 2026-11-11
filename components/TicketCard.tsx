@@ -193,10 +193,10 @@ export function TicketCard(props: { ticket: TicketRecord; incidents: Incident[];
                       <button type="button" className="back" style={{ margin: 0, display: 'inline', color: 'var(--ink)', textDecoration: 'underline', textUnderlineOffset: 3 }} onClick={() => props.onSelect({ kind: 'ticket', id: p.with })}>
                         {p.with}
                       </button>
-                      : {p.relation === 'same' ? 'the same fault' : p.relation === 'conflicting' ? 'the same fault, with a disagreement' : p.relation}.
+                      : {p.relation === 'unrelated' ? 'not the same fault' : p.relation === 'conflicting' ? 'the same fault, with a disagreement' : 'the same fault'}, {pct(p.related)} related.
                     </p>
                     {Object.keys(p.probabilities).length > 0 && (
-                      <div className={`t-${p.relation === 'same' ? 'green' : p.relation === 'conflicting' ? 'orange' : 'slate'}`}>
+                      <div className={`t-${p.relation === 'unrelated' ? 'slate' : p.relation === 'conflicting' ? 'orange' : 'green'}`}>
                         <Bars data={p.probabilities} top={p.relation} order={['same', 'conflicting', 'overlapping', 'unrelated'].filter((k) => k in p.probabilities)} />
                       </div>
                     )}

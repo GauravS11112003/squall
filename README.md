@@ -48,7 +48,7 @@ Each endpoint is there because its answer changes what Squall does next.
 | Screen | **Guard** `/injection` (same pipeline) | A ticket at or above 50% injection is held: it is not grouped and cannot move an incident. The storm contains one ticket that tells the triage system to close every VPN ticket and suppress the incident. |
 | Read | **Extract** `/extract` (in a pipeline) | Service, error, place and start time are quoted verbatim with their positions. They are pooled, by counting, into the incident's title and facts, and highlighted in the ticket. |
 | Shortlist | **Rerank** `/rerank` (same pipeline) | The new ticket is the query; open incidents and recent lone tickets are the documents. Only candidates marked `use` or `expand` go on to Compare. `different_case` is what keeps "how do I install the VPN?" out of the VPN outage. |
-| Merge | **Compare** `/compare` | The decision to merge. A ticket joins an incident only when Compare reads the pair as `same` or `conflicting` with at least 60% probability. Its matching passages are shown side by side. `conflicting` pairs are recorded as disagreements on the incident. |
+| Merge | **Compare** `/compare` | The decision to merge. A ticket joins an incident only when Compare puts the pair's `related` probability at 60% or more. Compare's own split of that probability (same, overlapping, conflicting) is shown on the ticket. A `conflicting` pair is recorded as a disagreement on the incident, with the two quoted passages side by side. |
 | Size up | **Decide** `/decide` | From three reports: a yes/no "is this a major incident?", a choice of scope and a severity score, each with probabilities. At 85% or more the incident is declared with no person involved; from 50% the manager is asked; below that Squall keeps watching. A recorded disagreement always sends it to a person. |
 | Find the fix | **Rerank** `/rerank` | Over the knowledge base. `use` passages are candidates; `expand` pulls in the neighbouring chunk of the same article. When the same person writes again, Rerank gets the thread as `conversation`, comes back with `already_given` for what they were sent, and the next step goes out instead. |
 | Check the fix | **Guard** + **Inspect** `/script` (one pipeline) | Each candidate passage is screened as retrieved content, and any script in it is read by Inspect before it could reach an employee's laptop. The knowledge base contains a poisoned "community tip" that ranks first for the VPN fault; its script disables antivirus and runs a download. It is blocked and the next passage is used. |
@@ -74,6 +74,10 @@ The stage shows what is happening; these make it usable as a product.
 | **Guide** | One sheet that explains every mark on the stage and every step, opened with `?`. |
 
 The narration, the activity trail, the what-if view and the report are built by counting and string-building over the engine's state ([`lib/story.ts`](lib/story.ts), [`lib/report.ts`](lib/report.ts)). No model is asked to explain what another model did.
+
+### What the live API taught us
+
+The first live probe changed the merge rule. We had expected Compare to label two reports of one fault `same`. It does not: `same` is kept for near-identical text, and two differently worded reports of one outage come back `overlapping` with `related` around 0.98. A how-to question about the same product comes back `unrelated` with `related` around 0.02, and a report that disagrees on the start time comes back `conflicting` with the two passages quoted. So Squall merges on `related`, and relies on Rerank's `different_case` to keep same-product, different-problem tickets from ever reaching Compare. The simulator was then changed to mirror this.
 
 ### What is not a model call
 

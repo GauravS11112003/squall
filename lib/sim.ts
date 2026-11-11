@@ -158,9 +158,10 @@ function compare(body: any) {
       const same = fa && fa === faultOf(b.text);
       const friday = /Friday/.test(a.text) !== /Friday/.test(b.text) && /8:40|this morning|minutos/.test(a.text + b.text);
       const sameTopic = topicOf(a.text) && topicOf(a.text) === topicOf(b.text);
-      const relation = same ? (friday ? 'conflicting' : 'same') : sameTopic ? 'overlapping' : 'unrelated';
+      // as seen live: differently worded reports of one fault are "overlapping"; same product, other problem is "unrelated"
+      void sameTopic;
+      const relation = same ? (friday ? 'conflicting' : 'overlapping') : 'unrelated';
       const probabilities = { same: 0.02, overlapping: 0.03, conflicting: 0.02, unrelated: 0.02, [relation]: 0.93 } as Record<string, number>;
-      const key = /809|not responding|no responde|push|approval|offline|connect/i;
       const when = /since Friday afternoon|about 8:40|roughly 8:40|this morning|hace unos minutos/;
       pairs.push({
         a: a.id,
@@ -168,8 +169,8 @@ function compare(body: any) {
         relation,
         related: relation === 'unrelated' ? 0.07 : 0.95,
         probabilities,
-        duplicate: same ? { kind: 'same_fault', kinds: { same_fault: 0.9 }, confidence: 0.9, a: passage(a, key), b: passage(b, key) } : null,
-        conflict: same && friday ? { kind: 'date', kinds: { date: 0.9 }, confidence: 0.88, a: passage(a, when), b: passage(b, when) } : null,
+        duplicates: [],
+        conflicts: same && friday ? [{ kind: 'date_or_version', kinds: { date_or_version: 0.9 }, confidence: 0.88, a: passage(a, when), b: passage(b, when) }] : [],
       });
     }
   }

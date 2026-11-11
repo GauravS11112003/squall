@@ -11,7 +11,7 @@ export const POLICY = {
   candidateFloor: 0.35,
   /** Rerank: how many candidates go on to Compare. */
   maxCompared: 2,
-  /** Compare: minimum related probability for "same" or "conflicting" to merge tickets. */
+  /** Compare: a ticket merges when Compare's `related` probability for the pair is at least this. */
   joinRelated: 0.6,
   /** Compare: a conflict finding at or above this confidence is recorded on the incident. */
   conflictFloor: 0.5,
@@ -58,7 +58,7 @@ export const MATCH_INSTRUCTIONS =
   'The query is a newly filed IT support ticket. Each document is either an open incident (several reports of one fault) or a single earlier ticket. A document answers the query only when it reports the same underlying fault: the same service failing in the same way during the same period, however it is worded and in whatever language. A how-to question, an access request, or the same service with a different fault is a different case.';
 
 export const COMPARE_INSTRUCTIONS =
-  'Each document is one IT support ticket. Two tickets are the same when they report the same underlying fault: the same service failing in the same way, however they are worded and in whatever language. They overlap when they concern the same service but could be separate problems, such as a how-to question next to an outage. They conflict when they report the same fault but disagree on a fact, such as when it started, which sites are affected or which error is shown. Otherwise they are unrelated.';
+  'Each document is one IT support ticket. Two tickets are related when they report the same underlying fault: the same service failing in the same way during the same period, however they are worded and in whatever language. A how-to question, an access request, or a different problem with the same product is unrelated. Two related tickets conflict when they disagree on a fact, such as when the fault started, which sites are affected or which error is shown.';
 
 export const DECIDE_INSTRUCTIONS =
   'You are sizing up a cluster of IT support tickets that all report one fault at a mid-sized company. Judge from the counts, the sites and the sample reports. A single office device with a handful of reports is not a major incident.';

@@ -127,12 +127,17 @@ function relationOf(raw: string): 'same' | 'overlapping' | 'conflicting' | 'unre
   return 'unrelated';
 }
 
+/**
+ * How sure Compare is that two tickets belong together. Measured on the live API:
+ * Compare keeps "same" for near-identical text, so two differently worded reports of
+ * one fault come back "overlapping" (or "conflicting" when they disagree on a fact),
+ * with `related` near 1. A how-to question next to an outage comes back "unrelated",
+ * with `related` near 0. So `related` is the merge signal.
+ */
 function joinProbability(p: { related: number; probabilities?: Record<string, number> }): number {
+  if (typeof p.related === 'number') return p.related;
   const pr = p.probabilities;
-  if (pr && (pr.same !== undefined || pr.conflicting !== undefined)) {
-    return (pr.same ?? 0) + (pr.conflicting ?? 0);
-  }
-  return p.related ?? 0;
+  return pr && pr.unrelated !== undefined ? 1 - pr.unrelated : 0;
 }
 
 function quote(p: { quote: string; start: number; end: number; confidence: number } | undefined): PassageQuote {
@@ -661,7 +666,12 @@ export async function step(input: StepInput, api: Api, kb: KbPassage[]): Promise
       if (p.a !== t.id && p.b !== t.id) continue;
       const mine = p.a === t.id;
       const otherId = mine ? p.b : p.a;
-      const orient = (f: typeof p.duplicate) =>
+      // The API returns `duplicates` and `conflicts` as lists per pair; older shapes had one object.
+      type Finding = NonNullable<typeof p.duplicate>;
+      const lists = p as unknown as { duplicates?: Finding[]; conflicts?: Finding[] };
+      const strongest = (one: Finding | null | undefined, many: Finding[] | undefined) =>
+        one ?? [...(many ?? [])].sort((x, y) => y.confidence - x.confidence)[0] ?? null;
+      const orient = (f: Finding | null) =>
         f ? { kind: f.kind, confidence: f.confidence, a: quote(mine ? f.a : f.b), b: quote(mine ? f.b : f.a) } : null;
       t.pairs.push({
         with: otherId,
@@ -669,17 +679,17 @@ export async function step(input: StepInput, api: Api, kb: KbPassage[]): Promise
         relation: relationOf(p.relation),
         related: p.related,
         probabilities: p.probabilities ?? {},
-        duplicate: orient(p.duplicate),
-        conflict: orient(p.conflict),
+        duplicate: orient(strongest(p.duplicate, lists.duplicates)),
+        conflict: orient(strongest(p.conflict, lists.conflicts)),
       } satisfies PairResult);
     }
     const joinable = t.pairs
-      .filter((p) => (p.relation === 'same' || p.relation === 'conflicting') && joinProbability(p) >= POLICY.joinRelated)
+      .filter((p) => p.relation !== 'unrelated' && joinProbability(p) >= POLICY.joinRelated)
       .sort((a, b) => joinProbability(b) - joinProbability(a));
     if (!joinable.length) {
       const best = [...t.pairs].sort((a, b) => b.related - a.related)[0];
       t.outcome = best
-        ? `On its own. Rerank shortlisted ${shortlist[0].id}, but Compare read ${best.with} as ${best.relation} (${pct(joinProbability(best))} same fault).`
+        ? `On its own. Rerank shortlisted ${shortlist[0].id}, but Compare read ${best.with} as ${best.relation} (${pct(joinProbability(best))} related).`
         : 'On its own. Compare returned no pair for this ticket.';
       return null;
     }
@@ -710,8 +720,8 @@ export async function step(input: StepInput, api: Api, kb: KbPassage[]): Promise
       other.status = 'joined';
       moved.push({ id: other.id, incidentId: found.id, outcome: `Grouped with ${t.id}: Compare read them as the same fault.`, sent: other.sent });
     }
-    const how = best.relation === 'conflicting' ? 'the same fault with a disagreement' : 'the same fault';
-    return { inc: found, why: `Compare read it as ${how} as ${best.with} (${pct(joinProbability(best))}).` };
+    const tail = best.relation === 'conflicting' ? ', with a disagreement' : '';
+    return { inc: found, why: `Compare read it as the same fault as ${best.with}${tail} (${pct(joinProbability(best))} related).` };
   };
   const hit = threadInc
     ? { inc: threadInc, why: `it is a reply in ${origin!.id}'s thread.` }

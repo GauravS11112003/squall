@@ -158,7 +158,7 @@ export function journeyOf(t: TicketRecord | null, incidents: Incident[]): Journe
   const held = t.status === 'held';
   const past = t.status === 'alone' || t.status === 'joined';
   const best = t.candidates.find((c) => c.action !== 'skip');
-  const pair = t.pairs.find((p) => p.relation === 'same' || p.relation === 'conflicting');
+  const pair = [...t.pairs].filter((p) => p.relation !== 'unrelated').sort((a, b) => b.related - a.related)[0];
   const inc = incidents.find((i) => i.id === t.incidentId);
   const decision = inc?.decisions.find((d) => d.at === t.at);
   return [
@@ -166,7 +166,7 @@ export function journeyOf(t: TicketRecord | null, incidents: Incident[]): Journe
     !t.guard ? mk(1, t.masked === null ? 'skip' : 'fail', t.masked === null ? 'Not reached' : 'Guard did not answer') : held ? mk(1, 'stop', `${pct(t.guard.injection)} injection: held`) : mk(1, 'done', `${pct(t.guard.injection)} injection: safe to read`),
     !past ? mk(2, 'skip', 'Not reached') : mk(2, 'done', facts ? `${facts} facts quoted from the ticket` : 'No facts quoted'),
     !past ? mk(3, 'skip', 'Not reached') : t.candidates.length ? mk(3, best ? 'done' : 'end', best ? `${best.id} could be the same fault (${pct(best.relevance)})` : 'Nothing open is the same case') : mk(3, 'skip', t.thread && t.incidentId ? 'A reply in a thread: no search needed' : 'Nothing open to search'),
-    t.pairs.length ? mk(4, pair && t.status === 'joined' ? 'done' : 'end', pair && t.status === 'joined' ? `Same fault as ${pair.with}` : 'Not the same fault') : mk(4, 'skip', 'Nothing to compare'),
+    t.pairs.length ? mk(4, pair && t.status === 'joined' ? 'done' : 'end', pair && t.status === 'joined' ? `Same fault as ${pair.with} (${pct(pair.related)} related)` : 'Not the same fault') : mk(4, 'skip', 'Nothing to compare'),
     decision ? mk(5, 'done', `${pct(decision.pMajor)} major at ${decision.size} reports`) : mk(5, 'skip', inc ? 'Not sized up on this ticket' : 'Not in an incident'),
   ];
 }
