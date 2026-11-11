@@ -1,0 +1,250 @@
+{
+  "ranAt": "2026-11-11T02:29:57.285Z",
+  "wallSeconds": 30,
+  "storm": {
+    "tickets": 38,
+    "spanSeconds": 480
+  },
+  "squall": {
+    "tickets": 38,
+    "grouped": {
+      "precision": 1,
+      "recall": 0.5,
+      "f1": 0.6666666666666666,
+      "truePairs": 80,
+      "wrongPairs": 0,
+      "missedPairs": 80
+    },
+    "hostile": {
+      "planted": 1,
+      "held": 1,
+      "wronglyHeld": []
+    },
+    "unscreened": 0,
+    "pii": {
+      "planted": 10,
+      "leaked": []
+    },
+    "faults": [
+      {
+        "fault": "vpn",
+        "name": "Harbor VPN gateway outage",
+        "major": true,
+        "reports": 17,
+        "found": 8,
+        "incidentId": "INC-1",
+        "status": "review",
+        "firstReportAt": 0,
+        "flaggedAt": 101,
+        "flaggedAs": "review",
+        "reportsWhenFlagged": 4
+      },
+      {
+        "fault": "sso",
+        "name": "Keyring push approvals not arriving",
+        "major": true,
+        "reports": 7,
+        "found": 7,
+        "incidentId": "INC-3",
+        "status": "declared",
+        "firstReportAt": 150,
+        "flaggedAt": 290,
+        "flaggedAs": "declared",
+        "reportsWhenFlagged": 4
+      },
+      {
+        "fault": "printer",
+        "name": "Denver 3rd-floor printer offline",
+        "major": false,
+        "reports": 3,
+        "found": 3,
+        "incidentId": "INC-4",
+        "status": "watching",
+        "firstReportAt": 95,
+        "flaggedAt": null,
+        "flaggedAs": null,
+        "reportsWhenFlagged": null
+      }
+    ],
+    "wronglyDeclared": [
+      "INC-2"
+    ]
+  },
+  "baseline": {
+    "grouped": {
+      "precision": 0.782608695652174,
+      "recall": 0.8135593220338984,
+      "f1": 0.7977839335180056,
+      "truePairs": 144,
+      "wrongPairs": 40,
+      "missedPairs": 33
+    },
+    "faults": [
+      {
+        "fault": "vpn",
+        "name": "Harbor VPN gateway outage",
+        "inBucket": 18,
+        "wrongInBucket": 2,
+        "flaggedAt": 80,
+        "wrongAtFlag": 1
+      },
+      {
+        "fault": "sso",
+        "name": "Keyring push approvals not arriving",
+        "inBucket": 8,
+        "wrongInBucket": 1,
+        "flaggedAt": 320,
+        "wrongAtFlag": 1
+      },
+      {
+        "fault": "printer",
+        "name": "Denver 3rd-floor printer offline",
+        "inBucket": 3,
+        "wrongInBucket": 0,
+        "flaggedAt": null,
+        "wrongAtFlag": 0
+      }
+    ],
+    "hostileCounted": 1
+  },
+  "cost": {
+    "calls": 137,
+    "failed": 0,
+    "credits": 579,
+    "costUsd": 0.11533600000000001,
+    "medianModelMs": 91.480446,
+    "medianRoundTripMs": 206,
+    "byEndpoint": {
+      "pipeline (pii + injection)": {
+        "calls": 38,
+        "credits": 146,
+        "medianModelMs": 80.609936,
+        "medianRoundTripMs": 197.5
+      },
+      "pipeline (extract)": {
+        "calls": 3,
+        "credits": 11,
+        "medianModelMs": 75.883202,
+        "medianRoundTripMs": 201
+      },
+      "pipeline (extract + rerank)": {
+        "calls": 34,
+        "credits": 170,
+        "medianModelMs": 116.1774735,
+        "medianRoundTripMs": 227
+      },
+      "compare": {
+        "calls": 20,
+        "credits": 140,
+        "medianModelMs": 111.8259985,
+        "medianRoundTripMs": 228.5
+      },
+      "decide": {
+        "calls": 10,
+        "credits": 10,
+        "medianModelMs": 24.066336,
+        "medianRoundTripMs": 140.5
+      },
+      "rerank": {
+        "calls": 4,
+        "credits": 10,
+        "medianModelMs": 53.19104,
+        "medianRoundTripMs": 156
+      },
+      "pipeline (injection)": {
+        "calls": 6,
+        "credits": 6,
+        "medianModelMs": 24.833343999999997,
+        "medianRoundTripMs": 131.5
+      },
+      "pipeline (injection + script)": {
+        "calls": 2,
+        "credits": 6,
+        "medianModelMs": 70.2564,
+        "medianRoundTripMs": 173.5
+      },
+      "fill": {
+        "calls": 10,
+        "credits": 52,
+        "medianModelMs": 117.122256,
+        "medianRoundTripMs": 220.5
+      },
+      "grounding": {
+        "calls": 10,
+        "credits": 28,
+        "medianModelMs": 34.2755035,
+        "medianRoundTripMs": 160.5
+      }
+    }
+  },
+  "stormCost": {
+    "calls": 117,
+    "failed": 0,
+    "credits": 510,
+    "costUsd": 0.10159400000000002,
+    "medianModelMs": 91.569056,
+    "medianRoundTripMs": 207,
+    "byEndpoint": {
+      "pipeline (pii + injection)": {
+        "calls": 38,
+        "credits": 146,
+        "medianModelMs": 80.609936,
+        "medianRoundTripMs": 197.5
+      },
+      "pipeline (extract)": {
+        "calls": 3,
+        "credits": 11,
+        "medianModelMs": 75.883202,
+        "medianRoundTripMs": 201
+      },
+      "pipeline (extract + rerank)": {
+        "calls": 34,
+        "credits": 170,
+        "medianModelMs": 116.1774735,
+        "medianRoundTripMs": 227
+      },
+      "compare": {
+        "calls": 20,
+        "credits": 140,
+        "medianModelMs": 111.8259985,
+        "medianRoundTripMs": 228.5
+      },
+      "decide": {
+        "calls": 10,
+        "credits": 10,
+        "medianModelMs": 24.066336,
+        "medianRoundTripMs": 140.5
+      },
+      "rerank": {
+        "calls": 3,
+        "credits": 7,
+        "medianModelMs": 48.482624,
+        "medianRoundTripMs": 158
+      },
+      "pipeline (injection)": {
+        "calls": 4,
+        "credits": 4,
+        "medianModelMs": 24.772895499999997,
+        "medianRoundTripMs": 131.5
+      },
+      "pipeline (injection + script)": {
+        "calls": 1,
+        "credits": 3,
+        "medianModelMs": 70.558849,
+        "medianRoundTripMs": 177
+      },
+      "fill": {
+        "calls": 2,
+        "credits": 11,
+        "medianModelMs": 133.1880155,
+        "medianRoundTripMs": 313.5
+      },
+      "grounding": {
+        "calls": 2,
+        "credits": 8,
+        "medianModelMs": 86.676912,
+        "medianRoundTripMs": 195.5
+      }
+    }
+  }
+}

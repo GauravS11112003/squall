@@ -479,7 +479,9 @@ export async function personalReply(
     const v = fill?.fields?.[name]?.value;
     return v === null || v === undefined ? '' : String(v).trim();
   };
-  reply.text = [part('acknowledgement'), part('step')].filter(Boolean).join(' ');
+  // Each field is one sentence. Close it, so Verify reads two claims and not one run-on line.
+  const sentence = (x: string) => (x && !/[.!?]$/.test(x) ? `${x}.` : x);
+  reply.text = [part('acknowledgement'), part('step')].map((x) => sentence((x ?? '').trim())).filter(Boolean).join(' ');
   if (!fill || !reply.text) {
     reply.error = 'Fill did not return a draft, so there is no reply. Write this one by hand.';
     return { reply, calls: ctx.calls };

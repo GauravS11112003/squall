@@ -124,7 +124,7 @@ export const REPLY_FIELDS = {
   },
   step: {
     type: 'generate' as const,
-    description: 'One sentence telling them what to do now, taken only from the knowledge base passage',
+    description: 'One sentence giving the exact steps to try now, copied closely from the knowledge base passage. Give the instruction itself, not the background or the cause',
     max_tokens: 60,
   },
 };

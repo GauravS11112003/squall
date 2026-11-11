@@ -7,6 +7,29 @@ Every judgement in Squall comes from the [Clocked API](https://clocked.rezolve.a
 Built for the Clocked Build Challenge, October 21 to November 10, 2026.
 
 <!-- RESULTS:START -->
+## Results
+
+One recorded run on the live Clocked API, November 10, 2026: 38 synthetic tickets over eight storm minutes, read in 29 seconds. Every number below is in [`eval/results.json`](eval/results.json), and the public demo replays this exact run.
+
+| | Squall on Clocked | Keyword rule (5 in a bucket within 10 minutes) |
+|---|---|---|
+| Grouping precision (pairs put together that are the same fault) | **100%** (160 of 160) | 78% (40 wrong pairs) |
+| Grouping recall (same-fault pairs put together) | **100%** (0 missed) | 81% (33 missed) |
+| VPN outage, 17 reports | all 17 in one incident; declared by policy 80 s after the first report, at 4 reports, Decide 94% | flagged at 80 s with a wrong ticket among its five; 2 of its 18 tickets are not the outage |
+| MFA outage, 7 reports | all 7 in one incident; the manager was asked 100 s after the first report, at 3 reports, Decide 61% | flagged at 170 s, with one ticket that is not the outage |
+| One offline printer, 3 reports | grouped, Decide 0%, kept watching | not flagged |
+| Ticket carrying a prompt injection | held, Guard 99.6%; no other ticket held | counted toward the VPN bucket |
+| Planted personal data reaching any later step | 0 of 10 | not applicable: it reads nothing |
+
+What happened after the VPN incident was declared, in the same run:
+
+- **Rerank** put the poisoned "community tip" at 0.994 for the fault, second of ten passages. **Inspect** read its script as 99.5% malicious (it turns off antivirus, downloads and runs a file, and adds a startup entry), so it was never sent. The vendor workaround went out instead.
+- **Verify** supported all three claims of the VPN broadcast (76%, 99.8%, 99.8%), each with its source. For the MFA incident it put "failing for employees in Chicago office" at 44% supported, so that broadcast was blocked until a person edits it.
+- Two people wrote again after receiving the workaround. **Rerank**, given the thread, marked what they had as `already_given` and the next step went out instead of the same advice.
+
+Cost of the whole run, from the response headers: **125 calls, 0 failed, 569 credits ($0.11)**, about 14 credits a ticket. Median model time 104 ms per call, median round trip 221 ms.
+
+This is the second full run. The first made no wrong merge either but split the VPN outage in two (recall 50%); what it showed and what changed is under [What the live API taught us](#what-the-live-api-taught-us), and its numbers are in [`eval/results-run1.json`](eval/results-run1.json). One synthetic storm is a demonstration, not a benchmark: see [Limits of this evaluation](#limits-of-this-evaluation).
 <!-- RESULTS:END -->
 
 ## Try it
@@ -29,6 +52,7 @@ Other commands:
 |---|---|
 | `npm run probe` | About ten real Clocked calls on storm tickets, raw answers saved to `probe/out.json`. A cheap check that your key works. |
 | `npm run eval` | Runs the whole storm live, scores it against ground truth and a keyword baseline, and writes `eval/results.json` and the recording the demo replays. |
+| `npm run replies` | Re-drafts only the personal replies of the recorded run, live. |
 | `npm test` | Engine tests on the offline simulator, including the failure paths. |
 
 Node 20 or newer. The key stays on the server: the browser never sees it.

@@ -12,6 +12,7 @@ import { hasKey, liveApi } from '../lib/api';
 import { declareByManager, personalReply, step } from '../lib/engine';
 import { KB_BY_ID } from '../data/kb';
 import { loadEnv } from '../lib/env';
+import { replyPassageIds } from '../lib/format';
 import { baseline, costOf, score } from '../lib/metrics';
 import { applyStep, priorOf, type StormState } from '../lib/run';
 import type { Recording, StepOutput } from '../lib/types';
@@ -57,7 +58,7 @@ const finalIncidents = run.incidents;
 for (const inc of finalIncidents.filter((i) => i.status === 'declared' && i.response?.reply)) {
   const due = run.tickets.filter((t) => t.incidentId === inc.id && t.masked && t.facts.impact?.value).slice(0, 4);
   for (const t of due) {
-    const ids = t.sent.length ? [t.sent[t.sent.length - 1]] : inc.response!.reply!.passageIds;
+    const ids = replyPassageIds(t, inc.response!.reply!.passageIds);
     const r = await personalReply(api, { ticket: { id: t.id, masked: t.masked! }, passages: ids.map((id) => KB_BY_ID[id]).filter(Boolean), incidentId: inc.id, at: t.at });
     replies[t.id] = r;
     console.log(`${t.id}  personal reply ${r.reply.verification?.sendable ? 'checked' : 'held back'}: ${r.reply.text.slice(0, 90)}`);

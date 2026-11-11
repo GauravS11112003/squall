@@ -56,3 +56,12 @@ export function incidentName(i: Incident | undefined | null): string {
   if (!i) return 'an incident';
   return i.services[0] ?? i.id;
 }
+
+/**
+ * Which knowledge base passages a personal reply is written from: the latest step for someone
+ * who has written again in a thread, otherwise the workaround the incident sent to everyone.
+ */
+export function replyPassageIds(t: { thread?: string | null; sent: string[] }, incidentReply: string[]): string[] {
+  if (t.thread && t.sent.length) return [t.sent[t.sent.length - 1]];
+  return incidentReply.length ? incidentReply : t.sent;
+}

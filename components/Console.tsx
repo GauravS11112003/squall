@@ -13,7 +13,7 @@ import { applyStep, priorOf } from '@/lib/run';
 import type { StormState } from '@/lib/run';
 import { journeyOf, storyOf } from '@/lib/story';
 import type { CallLog, Incident, Mode, PersonalReply, RawTicket, Recording, StepOutput } from '@/lib/types';
-import { incidentName, incidentTone, pct } from '@/lib/ui';
+import { incidentName, incidentTone, pct, replyPassageIds } from '@/lib/ui';
 import { Dock } from './Dock';
 import { Guide } from './Guide';
 import { IncidentCard } from './IncidentCard';
@@ -408,7 +408,7 @@ export default function Console() {
       const token = ref.current.token;
       setReplyBusy(ticketId);
       try {
-        const passageIds = t.sent.length ? [t.sent[t.sent.length - 1]] : inc.response?.reply?.passageIds ?? [];
+        const passageIds = replyPassageIds(t, inc.response?.reply?.passageIds ?? []);
         const res = await fetch('/api/reply', { method: 'POST', headers: headers(), body: JSON.stringify({ ticket: { id: t.id, masked: t.masked }, passageIds, incidentId: inc.id, at: t.at, policy: ref.current.overrides }) });
         const data = await res.json();
         if (ref.current.token !== token) return;
