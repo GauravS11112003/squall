@@ -44,6 +44,8 @@
   --spring: cubic-bezier(0.34, 1.4, 0.64, 1);
   --gutter: 20px;
   --dock-space: 182px;
+  --w-stream: 316px;
+  --w-card: 408px;
 }
 
 * {
@@ -469,73 +471,374 @@ button.pill:active {
   height: 17px;
 }
 
-/* ------------------------------------------------------------------ intro */
+/* ------------------------------------------------------------------ landing */
 
 .intro {
   position: fixed;
   inset: 0;
   z-index: 20;
   display: grid;
-  align-content: start;
-  justify-items: center;
-  text-align: center;
-  padding: clamp(96px, 15vh, 170px) 24px 0;
-  background: radial-gradient(52% 44% at 50% 30%, rgba(248, 250, 252, 0.94) 0%, rgba(248, 250, 252, 0.7) 55%, rgba(248, 250, 252, 0) 100%);
+  grid-template-rows: minmax(0, 1fr) auto;
+  padding-top: 68px;
   pointer-events: none;
+  background: linear-gradient(90deg, rgba(248, 250, 252, 0.94) 0%, rgba(248, 250, 252, 0.8) 44%, rgba(248, 250, 252, 0) 66%);
   transition: opacity 0.6s var(--ease), transform 0.8s var(--ease), filter 0.6s;
 }
 
 .intro.gone {
   opacity: 0;
-  transform: scale(1.04);
+  transform: scale(1.03);
   filter: blur(8px);
 }
 
-.intro > * {
+.intro button {
   pointer-events: auto;
 }
 
-.intro.gone > * {
+.intro.gone button {
   pointer-events: none;
 }
 
-.intro h1 {
-  font-size: clamp(40px, 6.4vw, 92px);
-  line-height: 0.98;
-  font-weight: 650;
-  letter-spacing: -0.055em;
-  max-width: 13ch;
-  text-wrap: balance;
+.lp-main {
+  position: relative;
+  min-height: 0;
 }
 
-.intro p {
-  margin-top: 22px;
-  max-width: 50ch;
-  font-size: 18px;
+/* The copy ends just left of centre; the picture starts just right of it. */
+.lp-copy {
+  position: absolute;
+  right: calc(50% + 5vh);
+  left: max(40px, calc(50% - 5vh - 560px));
+  top: 50%;
+  transform: translateY(-52%);
+}
+
+.lp-copy h1 {
+  font-size: clamp(44px, 10.4vh, 104px);
+  line-height: 0.94;
+  font-weight: 650;
+  letter-spacing: -0.058em;
+  max-width: 8.6ch;
+  margin-left: -0.04em;
+}
+
+.lp-copy p {
+  margin-top: clamp(16px, 3.2vh, 30px);
+  max-width: 46ch;
+  font-size: clamp(15px, 1.95vh, 18px);
   line-height: 1.5;
   color: var(--ink-2);
   letter-spacing: -0.012em;
   text-wrap: pretty;
 }
 
-.intro .go {
-  margin-top: 34px;
-  display: grid;
-  justify-items: center;
-  gap: 14px;
+.lp-go {
+  margin-top: clamp(18px, 3.6vh, 34px);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.intro small {
+.lp-copy > small {
+  display: block;
+  margin-top: 14px;
   font-size: 13px;
   color: var(--ink-3);
 }
 
-.intro code {
+.lp-copy code {
   font-family: var(--mono);
   font-size: 0.86em;
   background: var(--wash);
   padding: 2px 6px;
   border-radius: 6px;
+}
+
+/*
+  The picture is sized in viewport-height units, because the 3D storm behind it
+  scales with viewport height too: that keeps the lines pointing at its eye.
+  Its SVG is 700 x 660 units, one unit = 0.1vh.
+*/
+.lp-art {
+  position: absolute;
+  left: calc(50% + 1vh);
+  top: 50%;
+  width: 70vh;
+  height: 66vh;
+  transform: translateY(-52%);
+}
+
+.lp-art svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.lp-cap {
+  position: absolute;
+  left: 0;
+  top: 2.2%;
+  font-size: clamp(11px, 1.45vh, 13px);
+  color: var(--ink-3);
+}
+
+.lp-card {
+  position: absolute;
+  left: 0;
+  width: 52%;
+  height: 10%;
+  display: grid;
+  align-content: center;
+  gap: 0.25vh;
+  padding: 0 1.7vh;
+  border-radius: 1.6vh;
+  background: var(--glass-strong);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: var(--shadow-sm), inset 0 0 0 1px rgba(10, 15, 28, 0.05);
+  font-size: clamp(11px, 1.45vh, 14px);
+  animation: lp-card 0.7s var(--ease) both;
+}
+
+@keyframes lp-card {
+  from {
+    opacity: 0;
+    transform: translateX(-3vh);
+  }
+}
+
+.lp-card.out {
+  background: rgba(255, 255, 255, 0.5);
+  box-shadow: inset 0 0 0 1px rgba(10, 15, 28, 0.07);
+  border-color: transparent;
+  transform: translateX(-2.6vh);
+  animation-name: lp-card-out;
+}
+
+@keyframes lp-card-out {
+  from {
+    opacity: 0;
+    transform: translateX(-5.6vh);
+  }
+}
+
+.lp-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.84em;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.lp-meta span::first-letter {
+  text-transform: uppercase;
+}
+
+.lp-meta em {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--tone-ink);
+}
+
+.lp-card p {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 500;
+  letter-spacing: -0.012em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lp-card.out p {
+  color: var(--ink-3);
+}
+
+.lp-line {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.3;
+  stroke-opacity: 0.42;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: lp-draw 1.1s var(--ease) forwards;
+}
+
+@keyframes lp-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.lp-bead {
+  fill: var(--ink);
+}
+
+.lp-stub {
+  opacity: 0;
+  animation: lp-fade 0.6s var(--ease) forwards;
+}
+
+.lp-stub path {
+  fill: none;
+  stroke: var(--tone);
+  stroke-width: 1.3;
+  stroke-dasharray: 3 4;
+}
+
+.lp-stub circle {
+  fill: var(--paper);
+  stroke: var(--tone);
+  stroke-width: 1.5;
+}
+
+@keyframes lp-fade {
+  to {
+    opacity: 1;
+  }
+}
+
+.lp-one {
+  position: absolute;
+  left: 80%;
+  top: 68.5%;
+  transform: translateX(-50%);
+  width: max-content;
+  display: grid;
+  justify-items: center;
+  gap: 0.3vh;
+  text-align: center;
+  text-shadow: 0 0 18px #fff, 0 0 8px #fff;
+  animation: rise 0.9s var(--ease) 1.5s both;
+}
+
+.lp-one b {
+  font-size: clamp(24px, 4.6vh, 46px);
+  line-height: 1;
+  font-weight: 650;
+  letter-spacing: -0.045em;
+}
+
+.lp-one span {
+  margin-top: 0.6vh;
+  font-size: clamp(13px, 1.9vh, 17px);
+  font-weight: 550;
+  letter-spacing: -0.015em;
+}
+
+.lp-one small {
+  font-size: clamp(11px, 1.45vh, 13px);
+  line-height: 1.35;
+  color: var(--ink-3);
+  max-width: 24ch;
+}
+
+.lp-steps {
+  margin: 0 max(40px, calc(50% - 5vh - 560px));
+  padding-bottom: clamp(14px, 3vh, 30px);
+  animation: rise 0.9s var(--ease) 0.5s both;
+}
+
+.lp-steps > p {
+  font-size: 13.5px;
+  color: var(--ink-3);
+  margin-bottom: 12px;
+}
+
+.lp-steps > p b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.lp-steps ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  counter-reset: lp;
+  border-top: 1px solid var(--line-2);
+}
+
+.lp-steps li {
+  counter-increment: lp;
+  position: relative;
+  padding: 14px 18px 0 0;
+  display: grid;
+  align-content: start;
+  gap: 3px;
+}
+
+.lp-steps li::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+
+.lp-steps li b {
+  font-size: 15px;
+  font-weight: 620;
+  letter-spacing: -0.02em;
+}
+
+.lp-steps li b::before {
+  content: counter(lp);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-3);
+  margin-right: 8px;
+}
+
+.lp-steps li b small {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-3);
+  margin-left: 4px;
+}
+
+.lp-steps li span {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+@media (max-height: 760px) {
+  .lp-steps li span {
+    display: none;
+  }
+}
+
+/* Too narrow for copy and picture side by side: the copy takes the stage. */
+@media (max-aspect-ratio: 13/9), (max-width: 1100px) {
+  .lp-art {
+    display: none;
+  }
+  .lp-copy {
+    right: auto;
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, -52%);
+    width: min(640px, calc(100vw - 48px));
+  }
+  .intro {
+    background: radial-gradient(70% 60% at 50% 40%, rgba(248, 250, 252, 0.94) 0%, rgba(248, 250, 252, 0.6) 60%, rgba(248, 250, 252, 0) 100%);
+  }
+  .lp-steps ol {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    row-gap: 14px;
+  }
+  .lp-steps li span {
+    display: none;
+  }
 }
 
 .rise {
@@ -565,7 +868,7 @@ button.pill:active {
   left: var(--gutter);
   top: 80px;
   bottom: var(--dock-space);
-  width: 316px;
+  width: var(--w-stream);
   z-index: 25;
   display: flex;
   flex-direction: column;
@@ -769,7 +1072,7 @@ button.pill:active {
   position: fixed;
   right: var(--gutter);
   top: 80px;
-  width: 408px;
+  width: var(--w-card);
   max-height: calc(100dvh - 80px - var(--dock-space));
   z-index: 25;
   display: flex;
@@ -1777,12 +2080,14 @@ pre.code mark {
 
 .moment {
   position: fixed;
-  left: calc(50% - 46px);
+  /* centred in the space between the two side panels */
+  left: calc(var(--gutter) + var(--w-stream) + 14px);
+  right: calc(var(--gutter) + var(--w-card) + 14px);
   top: 82px;
-  transform: translateX(-50%);
+  margin: 0 auto;
   z-index: 31;
-  width: max-content;
-  max-width: min(520px, calc(100vw - 40px));
+  width: fit-content;
+  max-width: 520px;
   display: grid;
   grid-template-columns: 10px minmax(0, 1fr) auto;
   align-items: start;
@@ -1799,7 +2104,7 @@ pre.code mark {
 @keyframes moment-in {
   from {
     opacity: 0;
-    transform: translate(-50%, -14px) scale(0.96);
+    transform: translateY(-14px) scale(0.96);
   }
 }
 
@@ -2411,11 +2716,9 @@ input[type='range']::-moz-range-thumb {
   .pipe li {
     padding: 4px 6px;
   }
-  .stream {
-    width: 280px;
-  }
-  .card {
-    width: 360px;
+  :root {
+    --w-stream: 280px;
+    --w-card: 360px;
   }
   .figure b {
     font-size: 88px;
@@ -2482,7 +2785,8 @@ input[type='range']::-moz-range-thumb {
   }
   .moment {
     top: 64px;
-    left: 50%;
+    left: 16px;
+    right: 16px;
   }
   .sheet {
     padding: 26px 22px;
@@ -2490,6 +2794,9 @@ input[type='range']::-moz-range-thumb {
   .intro {
     position: absolute;
     height: 100dvh;
+  }
+  .lp-steps {
+    display: none;
   }
 }
 

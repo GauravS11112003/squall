@@ -139,7 +139,7 @@ The comparison is the rule many desks run today: bucket tickets by keyword and r
 ```
 app/                 Next.js app: the console and four server routes (step, declare, verify, status)
 components/Stage.tsx The 3D storm: shader hurricanes, ticket dots, merge arcs (React Three Fiber)
-components/          Console (state and run loop), Stream, IncidentCard, TicketCard, Dock, Moments,
+components/          Console (state and run loop), Landing, Stream, IncidentCard, TicketCard, Dock, Moments,
                      PolicySheet, Guide, Scoreboard
 lib/engine.ts        One ticket through every step; the response flow; all failure handling
 lib/policy.ts        Every threshold and every instruction sent to Clocked
@@ -157,6 +157,8 @@ public/recordings/   The recorded live run the public demo replays
 ### The stage
 
 The storm is the whole screen. Each incident is a hurricane drawn from sixteen thousand particles in a vertex shader. It grows with every report Compare merges into it, spins faster as Decide's probability rises, and turns from blue (watching) to amber (a person is asked) to red (major). The ink dots riding inside it are the real tickets; select one to see what each endpoint read. The ring on the floor is the probability, with a notch at each policy line. An arc flashes between two tickets when Compare merges them, and an orange line stays between two reports that disagree. Held tickets sit in a dashed red pen.
+
+The opening screen states the idea with the storm's own tickets: seven of them, worded seven ways, five drawn into one incident and two kept out, each for a stated reason. The excerpts are verbatim from `data/storm.ts` and the grouping shown is that file's ground truth, not a model result.
 
 Three glass panels float over the stage: the ticket stream and activity trail, one focused card (an incident's single number and single action, with the reasoning behind three tabs), and a console that narrates the latest ticket above a timeline with one tick per ticket. Everything on the stage is also in those panels, and motion is switched off for people who ask their system for reduced motion.
 

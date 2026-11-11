@@ -1,7 +1,7 @@
 'use client';
 
 import { Html, OrbitControls } from '@react-three/drei';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import type { Policy } from '@/lib/policy';
@@ -45,6 +45,9 @@ function seat(index: number): THREE.Vector3 {
 }
 
 const radiusFor = (reports: number) => 0.5 + 0.185 * Math.pow(Math.max(1, reports), 0.8);
+/** Where the idle hurricane sits: under the point the landing screen's lines converge on. */
+const TEASER_AT: [number, number, number] = [6.63, 0, -1.5];
+const HOME: [number, number, number] = [0.55, 0.2, 0.9];
 const HELD_AT = new THREE.Vector3(-3.7, 0, -3.3);
 
 function hash(s: string): number {
@@ -299,9 +302,9 @@ function Teaser({ geometry, shadow, on, still }: { geometry: THREE.BufferGeometr
         depthWrite: false,
         uniforms: {
           uTime: { value: 12 },
-          uRadius: { value: 4.6 },
+          uRadius: { value: 2.4 },
           uGrow: { value: on ? 1 : 0 },
-          uSpeed: { value: 0.16 },
+          uSpeed: { value: 0.3 },
           uSize: { value: 30 },
           uFlash: { value: 0 },
           uCore: { value: new THREE.Color('#3b6dff') },
@@ -319,8 +322,8 @@ function Teaser({ geometry, shadow, on, still }: { geometry: THREE.BufferGeometr
     if (shade.current) (shade.current.material as THREE.MeshBasicMaterial).opacity = 0.3 * u.uGrow.value;
   });
   return (
-    <group position={[0, 0, 3.4]}>
-      <mesh ref={shade} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]} scale={13}>
+    <group position={TEASER_AT}>
+      <mesh ref={shade} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]} scale={8}>
         <planeGeometry args={[1, 1]} />
         <meshBasicMaterial map={shadow} transparent opacity={0.3} depthWrite={false} toneMapped={false} />
       </mesh>
@@ -511,8 +514,13 @@ function Floor({ held }: { held: boolean }) {
 }
 
 /** Eases the orbit target toward the selected incident. */
-function Focus({ target }: { target: THREE.Vector3 }) {
+function Focus({ target, idle }: { target: THREE.Vector3; idle: boolean }) {
   const goal = useMemo(() => new THREE.Vector3(), []);
+  const controls = useThree((s) => s.controls) as unknown as { reset: () => void } | null;
+  // Back on the landing screen: return the camera to where the picture was composed for.
+  useEffect(() => {
+    if (idle && controls) controls.reset();
+  }, [idle, controls]);
   useFrame((state, dt) => {
     const controls = state.controls as unknown as { target: THREE.Vector3 } | null;
     if (!controls) return;
@@ -605,8 +613,8 @@ function Scene({ tickets, pending, incidents, selected, onSelect, still, idle, p
       {links.map((l) => (
         <Link key={l.key} registry={registry} spec={l} still={still} />
       ))}
-      <Focus target={focus} />
-      <OrbitControls makeDefault enablePan={false} enableDamping minDistance={8} maxDistance={30} minPolarAngle={0.5} maxPolarAngle={1.28} autoRotate={!still} autoRotateSpeed={0.22} />
+      <Focus target={focus} idle={idle} />
+      <OrbitControls makeDefault target={HOME} enabled={!idle} enablePan={false} enableDamping minDistance={8} maxDistance={30} minPolarAngle={0.5} maxPolarAngle={1.28} autoRotate={!still && !idle} autoRotateSpeed={0.22} />
     </>
   );
 }

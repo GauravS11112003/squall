@@ -1,6 +1,6 @@
 'use client';
 
-import { ChartNoAxesColumn, CircleHelp, Play, SlidersHorizontal } from 'lucide-react';
+import { ChartNoAxesColumn, CircleHelp, SlidersHorizontal } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { STORM } from '@/data/storm';
@@ -16,6 +16,7 @@ import { incidentName, incidentTone, pct } from '@/lib/ui';
 import { Dock } from './Dock';
 import { Guide } from './Guide';
 import { IncidentCard } from './IncidentCard';
+import { Landing } from './Landing';
 import { Moments } from './Moments';
 import { PolicyContext } from './policy-context';
 import { PolicySheet } from './PolicySheet';
@@ -123,6 +124,7 @@ export default function Console() {
 
   const liveStep = useCallback(
     async (ticket: RawTicket): Promise<boolean> => {
+      const token = ref.current.token;
       setPending(ticket);
       try {
         const res = await fetch('/api/step', {
@@ -131,14 +133,15 @@ export default function Console() {
           body: JSON.stringify({ ticket, incidents: ref.current.state.incidents, prior: priorOf(ref.current.state), policy: ref.current.overrides }),
         });
         const data = await res.json();
+        if (ref.current.token !== token) return false;
         if (!res.ok) throw new Error(data?.error ?? `The server answered ${res.status}.`);
         absorb(data as StepOutput);
         return true;
       } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
+        if (ref.current.token === token) setError(e instanceof Error ? e.message : String(e));
         return false;
       } finally {
-        setPending(null);
+        if (ref.current.token === token) setPending(null);
       }
     },
     [absorb, headers],
@@ -248,19 +251,21 @@ export default function Console() {
         setFlash((n) => n + 1);
         return;
       }
+      const token = ref.current.token;
       setBusy('declare');
       setError(null);
       try {
         const members = priorOf(ref.current.state).filter((p) => p.incidentId === inc.id);
         const res = await fetch('/api/declare', { method: 'POST', headers: headers(), body: JSON.stringify({ incident: inc, members, at: now, policy: ref.current.overrides }) });
         const data = await res.json();
+        if (ref.current.token !== token) return;
         if (!res.ok) throw new Error(data?.error ?? `The server answered ${res.status}.`);
         replaceIncident(data.incident, data.calls);
         setFlash((n) => n + 1);
       } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
+        if (ref.current.token === token) setError(e instanceof Error ? e.message : String(e));
       } finally {
-        setBusy(null);
+        if (ref.current.token === token) setBusy(null);
       }
     },
     [headers, now, recording, replaceIncident],
@@ -276,6 +281,7 @@ export default function Console() {
 
   const verify = useCallback(
     async (inc: Incident, draft: string): Promise<string | null> => {
+      const token = ref.current.token;
       setBusy('verify');
       try {
         const members = ref.current.state.tickets.filter((t) => t.incidentId === inc.id && t.masked).map((t) => ({ id: t.id, masked: t.masked! }));
@@ -285,6 +291,7 @@ export default function Console() {
           body: JSON.stringify({ draft, members, passageIds: inc.response?.reply?.passageIds ?? [], incidentId: inc.id, at: now, policy: ref.current.overrides }),
         });
         const data = await res.json();
+        if (ref.current.token !== token) return null;
         if (!res.ok) return data?.error ?? 'Verify did not answer. The edited update is unchecked and cannot be sent.';
         replaceIncident({ ...inc, response: { ...inc.response!, verification: data.verification, error: null } }, data.calls);
         setSent((x) => {
@@ -295,7 +302,7 @@ export default function Console() {
       } catch {
         return 'The server could not be reached. The edited update is unchecked and cannot be sent.';
       } finally {
-        setBusy(null);
+        if (ref.current.token === token) setBusy(null);
       }
     },
     [headers, now, replaceIncident],
@@ -428,46 +435,23 @@ export default function Console() {
         )}
       </header>
 
-      <div className={`intro ${started ? 'gone' : ''}`} aria-hidden={started}>
-        <h1 className="rise">See the outage in the tickets.</h1>
-        {mode ? (
-          <>
-            <p className="rise d1">
-              When a service fails, people report it in dozens of different ways. Squall reads every ticket as it lands, groups the ones that mean the same thing, and raises the major incident while it is still forming.
-            </p>
-            <div className="go rise d2">
-              <button className="btn ink big" type="button" onClick={() => run()} disabled={!canRun} tabIndex={started ? -1 : 0}>
-                <Play size={17} fill="currentColor" /> Start the storm
-              </button>
-              <small>
-                {mode === 'live'
-                  ? `${STORM.length} synthetic tickets, read live by the Clocked API. About 3,000 credits.`
-                  : mode === 'replay'
-                    ? `${plan.length} synthetic tickets, replayed from a live Clocked run.`
-                    : `${STORM.length} synthetic tickets, answered by the offline simulator.`}
-              </small>
-            </div>
-            <ul className="legend rise d2" aria-label="What you will see">
-              <li>
-                <span className="g g-dot" />
-                A dot is one ticket
-              </li>
-              <li>
-                <span className="g g-storm" />
-                A storm is one fault, reported many times
-              </li>
-              <li>
-                <span className="g g-ring" />
-                The ring is the chance it is major
-              </li>
-            </ul>
-          </>
-        ) : status ? (
-          <p className="rise d1">
-            This server has no Clocked key and no recorded run yet. Copy <code>.env.local.example</code> to <code>.env.local</code>, add your <code>CLOCKED_API_KEY</code>, and restart <code>npm run dev</code>.
-          </p>
-        ) : null}
-      </div>
+      <Landing
+        gone={started}
+        ready={Boolean(mode) || !status}
+        canRun={canRun}
+        still={still}
+        note={
+          mode === 'live'
+            ? `${STORM.length} synthetic tickets, read live by the Clocked API. About 3,000 credits.`
+            : mode === 'replay'
+              ? `${plan.length} synthetic tickets, replayed from a live Clocked run.`
+              : mode === 'sim'
+                ? `${STORM.length} synthetic tickets, answered by the offline simulator.`
+                : null
+        }
+        onStart={() => run()}
+        onGuide={() => setGuide(true)}
+      />
 
       {mode === 'live' && status?.needsCode && !started && (
         <div className="notice glass">
