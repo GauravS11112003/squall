@@ -1,7 +1,7 @@
 <div align="center">
 
-<a href="https://squall-phi.vercel.app">
-  <img src="docs/assets/banner.png" alt="Squall: see the outage in the tickets. Seven tickets worded seven ways; five are drawn into one incident, two are kept out." width="100%">
+<a href="https://youtu.be/e2KCD5ms6NA">
+  <img src="docs/assets/banner.png" alt="Watch the Squall demo on YouTube. Squall: see the outage in the tickets. Seven tickets worded seven ways; five are drawn into one incident, two are kept out." width="100%">
 </a>
 
 # Squall
@@ -11,8 +11,9 @@
 One failure arrives as dozens of tickets, no two worded alike.<br>
 Squall groups them as they land and raises the incident while it is still forming.
 
-[**Live demo**](https://squall-phi.vercel.app) &nbsp;·&nbsp; [Results](#results) &nbsp;·&nbsp; [How it works](#what-happens-to-a-ticket) &nbsp;·&nbsp; [What we learned](#what-the-live-api-taught-us) &nbsp;·&nbsp; [Run it](#try-it)
+[**▶ Watch the demo video**](https://youtu.be/e2KCD5ms6NA) &nbsp;·&nbsp; [**Live demo**](https://squall-phi.vercel.app) &nbsp;·&nbsp; [Results](#results) &nbsp;·&nbsp; [How it works](#what-happens-to-a-ticket) &nbsp;·&nbsp; [What we learned](#what-the-live-api-taught-us) &nbsp;·&nbsp; [Run it](#try-it)
 
+[![Watch the demo on YouTube](https://img.shields.io/badge/watch%20the%20demo-YouTube-FF0033?logo=youtube&logoColor=white)](https://youtu.be/e2KCD5ms6NA)
 [![Live demo](https://img.shields.io/badge/demo-squall--phi.vercel.app-0a0f1c?logo=vercel&logoColor=white)](https://squall-phi.vercel.app)
 [![Built on Clocked](https://img.shields.io/badge/built%20on-Clocked%20API-2f5bff)](https://clocked.rezolve.ai)
 ![Next.js](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs&logoColor=white)
@@ -28,9 +29,9 @@ Squall groups them as they land and raises the incident while it is still formin
 ---
 
 <div align="center">
-  <img src="docs/assets/storm.gif" alt="The recorded storm replaying: tickets land, a hurricane forms around the VPN outage, a dangerous fix is blocked, and the incident is declared at 94%." width="100%">
+  <a href="https://youtu.be/e2KCD5ms6NA"><img src="docs/assets/storm.gif" alt="The recorded storm replaying: tickets land, a hurricane forms around the VPN outage, a dangerous fix is blocked, and the incident is declared at 94%. Click to watch the full demo on YouTube." width="100%"></a>
   <br>
-  <sub>The recorded live run, sped up. Every probability on screen is an unedited Clocked response.</sub>
+  <sub>The recorded live run, sped up. Every probability on screen is an unedited Clocked response. <a href="https://youtu.be/e2KCD5ms6NA"><b>Watch the full demo on YouTube</b></a>.</sub>
 </div>
 
 <br>
@@ -99,7 +100,7 @@ This is the second full run. The first made no wrong merge either but split the 
 
 ## Try it
 
-**[Open the live demo](https://squall-phi.vercel.app)** and press **Start the storm**. It replays a recorded live run: every probability, quote, timing and credit count in it is an unedited Clocked response.
+**[Watch the demo video](https://youtu.be/e2KCD5ms6NA)** for the walkthrough, or **[open the live demo](https://squall-phi.vercel.app)** and press **Start the storm**. It replays a recorded live run: every probability, quote, timing and credit count in it is an unedited Clocked response.
 
 To run it yourself, live:
 
@@ -340,7 +341,7 @@ Deploy to any Node host (Vercel works with no configuration). What visitors get 
 <div align="center">
 <br>
 
-**[See the storm](https://squall-phi.vercel.app)**
+**[Watch the demo](https://youtu.be/e2KCD5ms6NA)** &nbsp;·&nbsp; **[See the storm](https://squall-phi.vercel.app)**
 
 <sub>MIT licensed.</sub>
 
