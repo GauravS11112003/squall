@@ -21,7 +21,7 @@ cp .env.local.example .env.local   # then add your CLOCKED_API_KEY
 npm run dev                        # http://localhost:3000
 ```
 
-Press **Start the storm**. A full live storm reads 38 synthetic tickets and uses roughly 3,000 credits (the exact figure for the recorded run is in `eval/results.json`). You can also type your own ticket into the storm and watch where it lands.
+Press **Start the storm**. A full live storm reads 38 synthetic tickets and uses roughly 700 credits (the exact figure for the recorded run is in `eval/results.json`). You can also type your own ticket into the storm and watch where it lands.
 
 Other commands:
 
@@ -47,8 +47,8 @@ Each endpoint is there because its answer changes what Squall does next.
 | Mask | **Protect** `/pii` (in a pipeline) | The masked text replaces the ticket. Every later call, the incident view and the broadcast read the masked text and never the original. If Protect does not answer, the ticket is not read at all. |
 | Screen | **Guard** `/injection` (same pipeline) | A ticket at or above 50% injection is held: it is not grouped and cannot move an incident. The storm contains one ticket that tells the triage system to close every VPN ticket and suppress the incident. |
 | Read | **Extract** `/extract` (in a pipeline) | Service, error, place and start time are quoted verbatim with their positions. They are pooled, by counting, into the incident's title and facts, and highlighted in the ticket. |
-| Shortlist | **Rerank** `/rerank` (same pipeline) | The new ticket is the query; open incidents and recent lone tickets are the documents. Only candidates marked `use` or `expand` go on to Compare. `different_case` is what keeps "how do I install the VPN?" out of the VPN outage. |
-| Merge | **Compare** `/compare` | The decision to merge. A ticket joins an incident only when Compare puts the pair's `related` probability at 60% or more. Compare's own split of that probability (same, overlapping, conflicting) is shown on the ticket. A `conflicting` pair is recorded as a disagreement on the incident, with the two quoted passages side by side. |
+| Shortlist | **Rerank** `/rerank` (same pipeline) | The new ticket is the query. The documents are earlier tickets, one report per document: the recent lone tickets and up to six reports from each open incident. Only candidates marked `use` or `expand` go on to Compare, the best report from each of the three closest groups. `different_case` is what keeps "how do I install the VPN?" out of the VPN outage. |
+| Merge | **Compare** `/compare` | The decision to merge. A ticket joins an incident only when Compare puts the pair's `related` probability at 60% or more. Compare's own split of that probability (same, overlapping, conflicting) is shown on the ticket. A `conflicting` pair is recorded as a disagreement on the incident, with the two quoted passages side by side. When Compare puts one ticket at 80% or more related to reports in two groups, that ticket is the evidence they are one fault, and the groups are merged. |
 | Size up | **Decide** `/decide` | From three reports: a yes/no "is this a major incident?", a choice of scope and a severity score, each with probabilities. At 85% or more the incident is declared with no person involved; from 50% the manager is asked; below that Squall keeps watching. A recorded disagreement always sends it to a person. |
 | Find the fix | **Rerank** `/rerank` | Over the knowledge base. `use` passages are candidates; `expand` pulls in the neighbouring chunk of the same article. When the same person writes again, Rerank gets the thread as `conversation`, comes back with `already_given` for what they were sent, and the next step goes out instead. |
 | Check the fix | **Guard** + **Inspect** `/script` (one pipeline) | Each candidate passage is screened as retrieved content, and any script in it is read by Inspect before it could reach an employee's laptop. The knowledge base contains a poisoned "community tip" that ranks first for the VPN fault; its script disables antivirus and runs a download. It is blocked and the next passage is used. |
@@ -83,6 +83,8 @@ The narration, the activity trail, the what-if view and the report are built by 
 
 The first live probe changed the merge rule. We had expected Compare to label two reports of one fault `same`. It does not: `same` is kept for near-identical text, and two differently worded reports of one outage come back `overlapping` with `related` around 0.98. A how-to question about the same product comes back `unrelated` with `related` around 0.02, and a report that disagrees on the start time comes back `conflicting` with the two passages quoted. So Squall merges on `related`, and relies on Rerank's `different_case` to keep same-product, different-problem tickets from ever reaching Compare. The simulator was then changed to mirror this.
 
+The first full evaluation changed the matcher. Squall used to describe each open incident to Rerank as one document: a title and two of its reports. That run made no wrong merge, but it split the VPN outage into two incidents of eight reports each (pairwise recall 50%). Reports quoting "the gateway is not responding" formed one, reports quoting the 809 connection error formed the other, and Rerank read the combined summary of the first as `different_case` (0.87) for a ticket from the second. Yet the same run held the evidence that they were one fault: five tickets were read by Compare as 83% to 100% related to reports in both. Two changes followed. Rerank now gets every report as its own document, because a single report was matched at 0.97 to 0.99 where the summary was skipped. And a ticket that Compare relates to reports in two groups now merges them. The numbers from that first run are kept in `eval/results-run1.json`.
+
 ### What is not a model call
 
 Rezolve's own guidance is to keep dates, counting and policy in deterministic code, and Squall does:
@@ -101,7 +103,7 @@ Squall fails toward a person, never toward a guess.
 | Protect or Guard does not answer | The ticket is marked "not read". Its text goes nowhere else and it is not grouped. |
 | Guard is unsure (at or above the line) | The ticket is held, shown with the flagged words, and kept out of every incident. |
 | Rerank does not answer | The ticket stays on its own. It is not merged. |
-| Compare does not answer, or reads the pair as overlapping or unrelated | No merge. The ticket's page says which pair was read and how. |
+| Compare does not answer, or puts the pair below 60% related | No merge. The ticket's page says which pair was read and how. |
 | Decide does not answer | The incident goes to the manager with that reason. |
 | Decide is between 50% and 85%, or reports disagree | The manager decides. The reason is stated on the incident. |
 | Extract finds no value | The field is left empty. Nothing is inferred. |
@@ -138,7 +140,8 @@ The comparison is the rule many desks run today: bucket tickets by keyword and r
 ### Limits of this evaluation
 
 - It is one synthetic storm written by the same person who built the engine. It shows the mechanism works on realistic awkward cases; it is not evidence about your tickets.
-- Thresholds were set by reasoning and one probe run, not tuned on a held-out set. Rezolve's advice to test calibration on your own tickets applies in full.
+- Thresholds were set by reasoning and one probe run, not tuned on a held-out set. The matcher was changed once after the first full run on this same storm (see above), so the second run is not a clean held-out test. Rezolve's advice to test calibration on your own tickets applies in full.
+- When Squall asks the incident manager, the recorded run answers yes at once. A real manager may take longer or say no; time to flag is therefore reported as the moment Squall asked.
 - The keyword baseline is a plain one. A desk with a tuned rules engine would do better than it.
 - Clocked's answers can change between model versions, so a rerun may differ from the recorded run.
 
@@ -159,7 +162,7 @@ lib/metrics.ts       Scoring, the keyword baseline, cost totals
 lib/sim.ts           Offline keyword simulator for development and tests. Not Clocked; always labelled.
 data/                The synthetic storm, its ground truth, the synthetic knowledge base
 scripts/             probe.ts and eval.ts
-eval/results.json    Output of the last live evaluation
+eval/results.json    Output of the last live evaluation (results-run1.json: the first run, before the matcher changed)
 public/recordings/   The recorded live run the public demo replays
 ```
 
