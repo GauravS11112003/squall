@@ -1,7 +1,7 @@
 <div align="center">
 
 <a href="https://youtu.be/e2KCD5ms6NA">
-  <img src="docs/assets/banner.png" alt="Watch the Squall demo on YouTube. Squall: see the outage in the tickets. Seven tickets worded seven ways; five are drawn into one incident, two are kept out." width="100%">
+  <img src="docs/assets/banner-demo.png" alt="Watch the Squall demo on YouTube. Squall: see the outage in the tickets. Seven tickets worded seven ways; five are drawn into one incident, two are kept out." width="100%">
 </a>
 
 # Squall
