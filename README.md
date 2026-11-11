@@ -26,8 +26,9 @@ What happened after the VPN incident was declared, in the same run:
 - **Rerank** put the poisoned "community tip" at 0.994 for the fault, second of ten passages. **Inspect** read its script as 99.5% malicious (it turns off antivirus, downloads and runs a file, and adds a startup entry), so it was never sent. The vendor workaround went out instead.
 - **Verify** supported all three claims of the VPN broadcast (76%, 99.8%, 99.8%), each with its source. For the MFA incident it put "failing for employees in Chicago office" at 44% supported, so that broadcast was blocked until a person edits it.
 - Two people wrote again after receiving the workaround. **Rerank**, given the thread, marked what they had as `already_given` and the next step went out instead of the same advice.
+- Five reporters who mentioned a deadline got a personal reply: **Fill** wrote it from their own ticket and the checked workaround, and **Verify** supported the instruction in each at 99% or more. These five were re-drafted after the run with `npm run replies`, because the first drafts joined two sentences without a full stop and Verify found no claim to check.
 
-Cost of the whole run, from the response headers: **125 calls, 0 failed, 569 credits ($0.11)**, about 14 credits a ticket. Median model time 104 ms per call, median round trip 221 ms.
+Cost of the whole run, from the response headers: **125 calls, 0 failed, 572 credits ($0.11)**, about 14 credits a ticket. Median model time 105 ms per call, median round trip 221 ms.
 
 This is the second full run. The first made no wrong merge either but split the VPN outage in two (recall 50%); what it showed and what changed is under [What the live API taught us](#what-the-live-api-taught-us), and its numbers are in [`eval/results-run1.json`](eval/results-run1.json). One synthetic storm is a demonstration, not a benchmark: see [Limits of this evaluation](#limits-of-this-evaluation).
 <!-- RESULTS:END -->

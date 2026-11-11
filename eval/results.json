@@ -108,9 +108,9 @@
   "cost": {
     "calls": 125,
     "failed": 0,
-    "credits": 569,
-    "costUsd": 0.1133420000000001,
-    "medianModelMs": 104.17395,
+    "credits": 572,
+    "costUsd": 0.11394400000000011,
+    "medianModelMs": 105.046721,
     "medianRoundTripMs": 221,
     "byEndpoint": {
       "pipeline (pii + injection)": {
@@ -163,15 +163,15 @@
       },
       "fill": {
         "calls": 7,
-        "credits": 35,
-        "medianModelMs": 101.257185,
-        "medianRoundTripMs": 199
+        "credits": 33,
+        "medianModelMs": 111.387649,
+        "medianRoundTripMs": 233
       },
       "grounding": {
         "calls": 7,
-        "credits": 20,
-        "medianModelMs": 34.176288,
-        "medianRoundTripMs": 141
+        "credits": 25,
+        "medianModelMs": 58.895871,
+        "medianRoundTripMs": 200
       }
     }
   },
