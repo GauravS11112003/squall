@@ -945,7 +945,7 @@ button.pill:active {
 .lp-steps > p {
   font-size: 13.5px;
   color: var(--ink-3);
-  margin-bottom: 12px;
+  margin: 0 0 12px 4px;
 }
 
 .lp-steps > p b {
@@ -953,67 +953,118 @@ button.pill:active {
   font-weight: 600;
 }
 
+/* One glass bar, six steps in order, each with its own colour. */
 .lp-steps ol {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 12px 14px;
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  counter-reset: lp;
-  border-top: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: var(--glass);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: var(--shadow-sm), 0 24px 48px -30px rgba(10, 15, 28, 0.35), inset 0 0 0 1px rgba(10, 15, 28, 0.05);
 }
 
 .lp-steps li {
-  counter-increment: lp;
   position: relative;
-  padding: 14px 18px 0 0;
-  display: grid;
-  align-content: start;
-  gap: 3px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding-right: 34px;
 }
 
-.lp-steps li::before {
+/* the hairline that carries a ticket from one step to the next */
+.lp-steps li:not(:last-child)::after {
   content: '';
   position: absolute;
-  top: -4px;
-  left: 0;
-  width: 7px;
+  right: 8px;
+  top: 50%;
+  width: 18px;
   height: 7px;
-  border-radius: 50%;
-  background: var(--ink);
+  transform: translateY(-50%);
+  background:
+    linear-gradient(var(--ink-4), var(--ink-4)) left center / 100% 1.5px no-repeat;
+  -webkit-mask: linear-gradient(90deg, transparent, #000 40%);
+  mask: linear-gradient(90deg, transparent, #000 40%);
 }
 
-.lp-steps li b {
-  font-size: 15px;
+.lp-steps li:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-top: 1.5px solid var(--ink-4);
+  border-right: 1.5px solid var(--ink-4);
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.lp-steps .lp-ico {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+}
+
+.lp-ico.s-1 {
+  --c1: #a5b4fc;
+  --c2: #4338ca;
+}
+
+.lp-ico.s-2 {
+  --c1: #fda4af;
+  --c2: #e11d48;
+}
+
+.lp-ico.s-3 {
+  --c1: #fcd34d;
+  --c2: #ea580c;
+}
+
+.lp-ico.s-4 {
+  --c1: #7dd3fc;
+  --c2: #0369a1;
+}
+
+.lp-ico.s-5 {
+  --c1: #6ee7b7;
+  --c2: #047857;
+}
+
+.lp-ico.s-6 {
+  --c1: #f0abfc;
+  --c2: #a21caf;
+}
+
+.lp-step {
+  min-width: 0;
+  display: grid;
+  line-height: 1.15;
+}
+
+.lp-step b {
+  font-size: 16px;
   font-weight: 620;
   letter-spacing: -0.02em;
+  white-space: nowrap;
 }
 
-.lp-steps li b::before {
-  content: counter(lp);
-  font-family: var(--mono);
-  font-size: 11.5px;
-  font-weight: 500;
-  color: var(--ink-3);
-  margin-right: 8px;
-}
-
-.lp-steps li b small {
+.lp-step small {
   font-size: 12.5px;
-  font-weight: 500;
   color: var(--ink-3);
-  margin-left: 4px;
+  white-space: nowrap;
 }
 
-.lp-steps li span {
-  font-size: 13px;
-  line-height: 1.4;
-  color: var(--ink-2);
-  text-wrap: pretty;
-}
-
-@media (max-height: 760px) {
-  .lp-steps li span {
+@media (max-width: 1240px) {
+  .lp-steps li {
+    padding-right: 22px;
+    gap: 9px;
+  }
+  .lp-steps li::after {
     display: none;
   }
 }
@@ -1035,9 +1086,11 @@ button.pill:active {
   }
   .lp-steps ol {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    row-gap: 14px;
+    row-gap: 12px;
+    border-radius: 28px;
   }
-  .lp-steps li span {
+  .lp-steps li::before,
+  .lp-steps li::after {
     display: none;
   }
 }

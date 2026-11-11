@@ -1,6 +1,7 @@
 'use client';
 
-import { AppWindow, BookOpen, Mail, MessageCircle, Play } from 'lucide-react';
+import { AppWindow, BookOpen, EyeOff, Gauge, GitMerge, ListFilter, Mail, MessageCircle, Play, ScanText, ShieldCheck } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { STORM } from '@/data/storm';
 
@@ -28,13 +29,13 @@ const CHANNEL = {
   portal: { word: 'Portal', Icon: AppWindow },
 } as const;
 
-const STEPS: [string, string, string][] = [
-  ['Mask', 'Protect', 'Personal data is hidden before anything else reads the ticket.'],
-  ['Screen', 'Guard', 'A ticket that tries to instruct the system is held.'],
-  ['Read', 'Extract', 'Service, error, place and deadline, quoted word for word.'],
-  ['Shortlist', 'Rerank', 'Which open incident could this belong to?'],
-  ['Match', 'Compare', 'Same fault, or only the same product? Only a match merges.'],
-  ['Size up', 'Decide', 'How likely is a major incident, and how widely is it felt?'],
+const STEPS: { verb: string; endpoint: string; hint: string; Icon: LucideIcon }[] = [
+  { verb: 'Mask', endpoint: 'Protect', hint: 'Personal data is hidden before anything else reads the ticket.', Icon: EyeOff },
+  { verb: 'Screen', endpoint: 'Guard', hint: 'A ticket that tries to instruct the system is held.', Icon: ShieldCheck },
+  { verb: 'Read', endpoint: 'Extract', hint: 'Service, error, place and deadline, quoted word for word.', Icon: ScanText },
+  { verb: 'Shortlist', endpoint: 'Rerank', hint: 'Which open incident could this belong to?', Icon: ListFilter },
+  { verb: 'Match', endpoint: 'Compare', hint: 'Same fault, or only the same product? Only a match merges.', Icon: GitMerge },
+  { verb: 'Size up', endpoint: 'Decide', hint: 'How likely is a major incident, and how widely is it felt?', Icon: Gauge },
 ];
 
 // Geometry of the picture, in units of a thousandth of the box (see .lp-art in globals.css).
@@ -170,15 +171,18 @@ export function Landing(props: {
 
       <div className="lp-steps">
         <p>
-          <b>What happens to every ticket.</b> Each step is one Clocked API endpoint, and its answer decides what happens next.
+          <b>Six checks on every ticket.</b> Each one is a Clocked API endpoint.
         </p>
         <ol>
-          {STEPS.map(([verb, endpoint, text]) => (
-            <li key={verb}>
-              <b>
-                {verb} <small>{endpoint}</small>
-              </b>
-              <span>{text}</span>
+          {STEPS.map((st, i) => (
+            <li key={st.verb} title={st.hint}>
+              <span className={`lp-ico s-${i + 1}`}>
+                <st.Icon />
+              </span>
+              <span className="lp-step">
+                <b>{st.verb}</b>
+                <small>{st.endpoint}</small>
+              </span>
             </li>
           ))}
         </ol>
