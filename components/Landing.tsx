@@ -1,6 +1,7 @@
 'use client';
 
-import { Play } from 'lucide-react';
+import { BookOpen, Play } from 'lucide-react';
+import { useMemo } from 'react';
 import { STORM } from '@/data/storm';
 
 /**
@@ -34,6 +35,26 @@ const CARD_W = 364;
 const CARD_H = 66;
 const TOP = 58;
 const GAP = 12;
+/**
+ * The texture inside the word "outage": the storm's own tickets, set small in white and tiled,
+ * as an SVG image the headline clips to its letterforms. Tickets that carry planted
+ * personal data are left out, since the product's first step is to hide it.
+ */
+function weave(): string {
+  const safe = STORM.map((t) => t.text.replace(/\s+/g, ' ').trim()).filter((t) => !/\d{3}-\d{3}-\d{4}|@|E-\d{5}|Whitfield|Kowalczyk|Raman|Oyelaran|Adeyemi|Brandt|SYSTEM NOTE/.test(t));
+  const esc = (x: string) => x.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const W = 1400;
+  const LH = 9;
+  const ROWS = 30;
+  let rows = '';
+  for (let r = 0; r < ROWS; r++) {
+    const line = Array.from({ length: 7 }, (_, k) => safe[(r * 5 + k * 3) % safe.length]).join('  ');
+    rows += `<text x="${-((r * 137) % 90)}" y="${r * LH + 7}">${esc(line)}</text>`;
+  }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${ROWS * LH}"><g font-family="ui-monospace,Menlo,Consolas,monospace" font-size="8" font-weight="700" fill="#ffffff" fill-opacity="0.62">${rows}</g></svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}
+
 const cy = (i: number) => TOP + i * (CARD_H + GAP) + CARD_H / 2;
 const EYE = { x: 524, y: 322 };
 const curve = (i: number) => `M${CARD_W},${cy(i)} C${CARD_W + 46},${cy(i)} ${EYE.x - 140},${EYE.y} ${EYE.x},${EYE.y}`;
@@ -49,22 +70,35 @@ export function Landing(props: {
 }) {
   const rows = PICKS.map((p) => ({ ...p, ticket: STORM.find((t) => t.id === p.id)! }));
   const joined = rows.filter((r) => !r.out).length;
+  const woven = useMemo(weave, []);
   return (
     <div className={`intro ${props.gone ? 'gone' : ''}`} aria-hidden={props.gone}>
       <div className="lp-main">
         <div className="lp-copy">
-          <h1 className="rise">See the outage in the tickets.</h1>
+          {/* The word "outage" is drawn out of ticket text: you see the outage in the tickets. */}
+          <h1 className="rise" aria-label="See the outage in the tickets.">
+            <span aria-hidden="true">See the</span>
+            <span aria-hidden="true">
+              <span className="lp-woven" style={{ backgroundImage: `${woven}, linear-gradient(#0a0f1c, #0a0f1c)` }}>
+                outage
+              </span>{' '}
+              in
+            </span>
+            <span aria-hidden="true">the tickets.</span>
+          </h1>
           {props.ready ? (
             <>
-              <p className="rise d1">
-                When a service fails, people report it in dozens of different ways, and the desk works those tickets one at a time. Squall reads each one as it lands, groups the ones that mean the same thing, and raises the major incident while it is still forming.
-              </p>
+              <p className="rise d1">One failure arrives as dozens of tickets, no two worded alike. Squall groups them as they land and raises the incident while it is still forming.</p>
               <div className="lp-go rise d2">
-                <button className="btn ink big" type="button" onClick={props.onStart} disabled={!props.canRun} tabIndex={props.gone ? -1 : 0}>
-                  <Play size={17} fill="currentColor" /> Start the storm
+                <button className="lp-start" type="button" onClick={props.onStart} disabled={!props.canRun} tabIndex={props.gone ? -1 : 0}>
+                  <span className="disc">
+                    <Play size={15} fill="currentColor" strokeWidth={0} />
+                  </span>
+                  Start the storm
+                  <kbd>Space</kbd>
                 </button>
-                <button className="btn big ghost" type="button" onClick={props.onGuide} tabIndex={props.gone ? -1 : 0}>
-                  How to read it
+                <button className="lp-how" type="button" onClick={props.onGuide} tabIndex={props.gone ? -1 : 0}>
+                  <BookOpen size={16} /> How to read it
                 </button>
               </div>
               {props.note && <small className="rise d2">{props.note}</small>}
