@@ -724,7 +724,7 @@ button.pill:active {
   transform: translateY(-52%);
 }
 
-.lp-art svg {
+.lp-art > svg {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -740,20 +740,22 @@ button.pill:active {
   color: var(--ink-3);
 }
 
+/* Each ticket is a chip: a coloured channel icon and a few of the reporter's own words. */
 .lp-card {
   position: absolute;
-  left: 0;
-  width: 52%;
+  right: 50%;
+  width: max-content;
+  max-width: 50%;
   height: 10%;
-  display: grid;
-  align-content: center;
-  gap: 0.25vh;
-  padding: 0 1.7vh;
-  border-radius: 1.6vh;
+  display: flex;
+  align-items: center;
+  gap: 1.5vh;
+  padding: 0 2.4vh 0 1vh;
+  border-radius: 999px;
   background: var(--glass-strong);
   border: 1px solid rgba(255, 255, 255, 0.95);
   box-shadow: var(--shadow-sm), inset 0 0 0 1px rgba(10, 15, 28, 0.05);
-  font-size: clamp(11px, 1.45vh, 14px);
+  font-size: clamp(12px, 1.7vh, 16.5px);
   animation: lp-card 0.7s var(--ease) both;
 }
 
@@ -765,7 +767,7 @@ button.pill:active {
 }
 
 .lp-card.out {
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.55);
   box-shadow: inset 0 0 0 1px rgba(10, 15, 28, 0.07);
   border-color: transparent;
   transform: translateX(-2.6vh);
@@ -779,30 +781,59 @@ button.pill:active {
   }
 }
 
-.lp-meta {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  font-size: 0.84em;
-  color: var(--ink-3);
-  white-space: nowrap;
+.lp-ico {
+  flex: none;
+  width: 4.6vh;
+  height: 4.6vh;
+  min-width: 30px;
+  min-height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(145deg, var(--c1), var(--c2));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 6px 14px -6px var(--c2);
 }
 
-.lp-meta span::first-letter {
-  text-transform: uppercase;
+.lp-ico svg {
+  width: 52%;
+  height: 52%;
+  stroke-width: 2.2;
 }
 
-.lp-meta em {
-  font-style: normal;
-  font-weight: 600;
-  color: var(--tone-ink);
+.lp-ico.c-chat {
+  --c1: #a78bfa;
+  --c2: #6d28d9;
+}
+
+.lp-ico.c-email {
+  --c1: #38bdf8;
+  --c2: #1d4ed8;
+}
+
+.lp-ico.c-portal {
+  --c1: #34d399;
+  --c2: #0f766e;
+}
+
+.lp-card.out .lp-ico {
+  filter: saturate(0.25);
+  opacity: 0.75;
+  box-shadow: none;
+}
+
+.lp-card > div {
+  min-width: 0;
+  display: grid;
+  gap: 0.15vh;
 }
 
 .lp-card p {
   margin: 0;
   color: var(--ink);
-  font-weight: 500;
-  letter-spacing: -0.012em;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -810,6 +841,20 @@ button.pill:active {
 
 .lp-card.out p {
   color: var(--ink-3);
+}
+
+.lp-meta {
+  display: flex;
+  gap: 1.2vh;
+  font-size: 0.76em;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.lp-meta em {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--tone-ink);
 }
 
 .lp-line {
