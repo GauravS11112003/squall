@@ -1,10 +1,72 @@
+<div align="center">
+
+<a href="https://squall-phi.vercel.app">
+  <img src="docs/assets/banner.png" alt="Squall: see the outage in the tickets. Seven tickets worded seven ways; five are drawn into one incident, two are kept out." width="100%">
+</a>
+
 # Squall
 
-**Squall sees the outage in the tickets.** When a shared service fails, dozens of employees report it in dozens of different ways, and the service desk works those tickets one at a time until somebody notices they are all the same problem. Squall reads each ticket as it lands, groups the ones that describe the same fault, and raises the major incident while it is still forming. Then it finds the workaround, checks it is safe to send, and drafts a broadcast that cannot say anything the reports do not support.
+**See the outage in the tickets.**
 
-Every judgement in Squall comes from the [Clocked API](https://clocked.rezolve.ai) by Rezolve.ai, with its probability and the words it rests on. What to do at each probability is plain code in one file.
+One failure arrives as dozens of tickets, no two worded alike.<br>
+Squall groups them as they land and raises the incident while it is still forming.
 
-Built for the Clocked Build Challenge, October 21 to November 10, 2026.
+[**Live demo**](https://squall-phi.vercel.app) &nbsp;·&nbsp; [Results](#results) &nbsp;·&nbsp; [How it works](#what-happens-to-a-ticket) &nbsp;·&nbsp; [What we learned](#what-the-live-api-taught-us) &nbsp;·&nbsp; [Run it](#try-it)
+
+[![Live demo](https://img.shields.io/badge/demo-squall--phi.vercel.app-0a0f1c?logo=vercel&logoColor=white)](https://squall-phi.vercel.app)
+[![Built on Clocked](https://img.shields.io/badge/built%20on-Clocked%20API-2f5bff)](https://clocked.rezolve.ai)
+![Next.js](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs&logoColor=white)
+![React](https://img.shields.io/badge/React-19-149eca?logo=react&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)
+![three.js](https://img.shields.io/badge/three.js-R3F-000000?logo=threedotjs&logoColor=white)
+[![License: MIT](https://img.shields.io/badge/license-MIT-22a06b)](LICENSE)
+
+<sub>Built for the Clocked Build Challenge, October 21 to November 10, 2026.</sub>
+
+</div>
+
+---
+
+<div align="center">
+  <img src="docs/assets/storm.gif" alt="The recorded storm replaying: tickets land, a hurricane forms around the VPN outage, a dangerous fix is blocked, and the incident is declared at 94%." width="100%">
+  <br>
+  <sub>The recorded live run, sped up. Every probability on screen is an unedited Clocked response.</sub>
+</div>
+
+<br>
+
+<table>
+<tr>
+<td align="center" width="25%"><h3>100%</h3>grouping precision and recall<br><sub>keyword rule: 78% and 81%</sub></td>
+<td align="center" width="25%"><h3>80 s</h3>from first report to a declared VPN outage<br><sub>at 4 reports, Decide 94%</sub></td>
+<td align="center" width="25%"><h3>0 of 10</h3>planted pieces of personal data reached a later step<br><sub>and the one hostile ticket was held</sub></td>
+<td align="center" width="25%"><h3>$0.11</h3>for the whole storm<br><sub>125 calls, 572 credits, 0 failed</sub></td>
+</tr>
+</table>
+
+## The problem
+
+When a shared service fails, nobody files a ticket that says "the VPN gateway is down". They say "vpn ded again??", "No puedo conectarme", "can't reach the ERP", and "URGENT: payroll cutoff is 11am". Dozens of employees report one fault in dozens of different ways, over five channels, and the service desk works those tickets one at a time until somebody notices they are all the same problem.
+
+The usual defence is a keyword rule: bucket tickets by keyword and raise an incident at five in a bucket within ten minutes. It costs nothing and it reads nothing. It counts "how do I install the VPN?" as part of the VPN outage, it counts a ticket that tells the triage system to suppress the incident, and it misses the report that never uses the keyword.
+
+## What Squall does
+
+Squall reads each ticket as it lands, groups the ones that describe the same fault, and raises the major incident while it is still forming. Then it finds the workaround, checks it is safe to send, and drafts a broadcast that cannot say anything the reports do not support.
+
+Every judgement in Squall comes from the [Clocked API](https://clocked.rezolve.ai) by Rezolve.ai, with its probability and the words it rests on. What to do at each probability is plain code in one file, [`lib/policy.ts`](lib/policy.ts).
+
+<img src="docs/assets/storm.png" alt="The storm after all 38 tickets: three hurricanes for the VPN outage (94%, 17 reports), the Keyring MFA outage (61%, 7 reports) and one printer (0%, 3 reports)." width="100%">
+
+**It groups by meaning.** Each incident is a hurricane that grows with every report merged into it, spins faster as the chance of a major incident rises, and turns from blue (watching) to amber (a person is asked) to red (major). The ink dots inside are the real tickets.
+
+<img src="docs/assets/incident.png" alt="The VPN incident declared at 94% with nine reports. The response tab shows one blocked fix and the update being checked claim by claim." width="100%">
+
+**It acts on a number, and shows the number.** The VPN outage was declared by policy at 94%, with no person involved, 80 seconds after the first report. The poisoned knowledge base article that ranked 99% relevant was read as 99.5% malicious and never sent. The update on the right cannot go out until every claim in it is supported.
+
+<img src="docs/assets/records.png" alt="The records view: the VPN incident with its fields, and a proof table showing which ticket matched which, how related Compare read them, and how it labelled the pair." width="100%">
+
+**It keeps the receipts.** After the run, every incident is a record: why these tickets are one incident, why it is major, where reports disagree, why this fix was sent, and why the update can go out. Each answer is the Clocked response that decided it.
 
 <!-- RESULTS:START -->
 ## Results
@@ -21,6 +83,8 @@ One recorded run on the live Clocked API, November 10, 2026: 38 synthetic ticket
 | Ticket carrying a prompt injection | held, Guard 99.6%; no other ticket held | counted toward the VPN bucket |
 | Planted personal data reaching any later step | 0 of 10 | not applicable: it reads nothing |
 
+<img src="docs/assets/score.png" alt="The in-app scoreboard: Squall on Clocked at 100% of groupings right, beside the keyword count rule at 78%." width="100%">
+
 What happened after the VPN incident was declared, in the same run:
 
 - **Rerank** put the poisoned "community tip" at 0.994 for the fault, second of ten passages. **Inspect** read its script as 99.5% malicious (it turns off antivirus, downloads and runs a file, and adds a startup entry), so it was never sent. The vendor workaround went out instead.
@@ -28,26 +92,25 @@ What happened after the VPN incident was declared, in the same run:
 - Two people wrote again after receiving the workaround. **Rerank**, given the thread, marked what they had as `already_given` and the next step went out instead of the same advice.
 - Five reporters who mentioned a deadline got a personal reply: **Fill** wrote it from their own ticket and the checked workaround, and **Verify** supported the instruction in each at 99% or more. These five were re-drafted after the run with `npm run replies`, because the first drafts joined two sentences without a full stop and Verify found no claim to check.
 
-Cost of the whole run, from the response headers: **125 calls, 0 failed, 572 credits ($0.11)**, about 14 credits a ticket. Median model time 105 ms per call, median round trip 221 ms.
+Cost of the whole run, from the response headers: **125 calls, 0 failed, 572 credits ($0.11)**, about 14 credits a ticket. Median model time 105 ms per call, median round trip 221 ms. The storm itself is 115 calls and 537 credits, which is what the app's own counter shows; the rest is the five personal replies.
 
 This is the second full run. The first made no wrong merge either but split the VPN outage in two (recall 50%); what it showed and what changed is under [What the live API taught us](#what-the-live-api-taught-us), and its numbers are in [`eval/results-run1.json`](eval/results-run1.json). One synthetic storm is a demonstration, not a benchmark: see [Limits of this evaluation](#limits-of-this-evaluation).
 <!-- RESULTS:END -->
 
 ## Try it
 
-- **Live demo:** see the repository description for the link. It replays a recorded live run: every probability, quote, timing and credit count in it is an unedited Clocked response.
-- **Run it yourself, live:**
+**[Open the live demo](https://squall-phi.vercel.app)** and press **Start the storm**. It replays a recorded live run: every probability, quote, timing and credit count in it is an unedited Clocked response.
+
+To run it yourself, live:
 
 ```sh
-git clone <this repository> && cd squall
+git clone https://github.com/GauravS11112003/squall.git && cd squall
 npm install
 cp .env.local.example .env.local   # then add your CLOCKED_API_KEY
 npm run dev                        # http://localhost:3000
 ```
 
-Press **Start the storm**. A full live storm reads 38 synthetic tickets and uses roughly 700 credits (the exact figure for the recorded run is in `eval/results.json`). You can also type your own ticket into the storm and watch where it lands.
-
-Other commands:
+A full live storm reads 38 synthetic tickets and uses roughly 700 credits (the exact figure for the recorded run is in `eval/results.json`). You can also type your own ticket into the storm and watch where it lands.
 
 | Command | What it does |
 |---|---|
@@ -56,13 +119,30 @@ Other commands:
 | `npm run replies` | Re-drafts only the personal replies of the recorded run, live. |
 | `npm test` | Engine tests on the offline simulator, including the failure paths. |
 
-Node 20 or newer. The key stays on the server: the browser never sees it.
+> [!NOTE]
+> Node 20 or newer. The key stays on the server: the browser never sees it.
 
 ## What happens to a ticket
 
-```
-ticket ─► Protect + Guard ─► Extract + Rerank ─► Compare ─► Decide ─► Rerank ─► Guard + Inspect ─► Fill ─► Verify
-          (one pipeline)     (one pipeline)       merge?     major?    workaround   safe to send?    draft   every claim
+```mermaid
+flowchart LR
+    T([Ticket]) --> A["Protect + Guard<br/>mask and screen"]
+    A -->|"injection 50% or more"| H([Held, never counted])
+    A --> B["Extract + Rerank<br/>read and shortlist"]
+    B --> C{"Compare<br/>60% related?"}
+    C -->|no| L([Stands on its own])
+    C -->|yes| I([Joins the incident])
+    I --> D{"Decide<br/>major incident?"}
+    D -->|"under 50%"| W([Keep watching])
+    D -->|"50% to 85%"| P([Ask the manager])
+    D -->|"85% or more"| M([Declared])
+    P -->|yes| M
+    M --> R["Rerank<br/>find the workaround"]
+    R --> G["Guard + Inspect<br/>safe to send?"]
+    G --> F["Fill<br/>draft the update"]
+    F --> V{"Verify<br/>every claim supported?"}
+    V -->|yes| S([Send])
+    V -->|no| E([Blocked until edited])
 ```
 
 Each endpoint is there because its answer changes what Squall does next.
@@ -82,33 +162,31 @@ Each endpoint is there because its answer changes what Squall does next.
 
 `/pipeline` is used wherever two steps read the same text, so they cost one request and one debit.
 
-### Around the storm
+## What the live API taught us
 
-The stage shows what is happening; these make it usable as a product.
+Two things we believed before touching the live API turned out to be wrong. Both are still visible in the repository.
 
-| Feature | What it does |
-|---|---|
-| **Narration** | The bottom console says what just happened to the latest ticket in one sentence, and shows how far it got through the six steps (Mask, Screen, Read, Shortlist, Match, Size up) with the Clocked endpoint named under each. |
-| **Moments** | An incident declared, a ticket held, a dangerous fix blocked, two reports disagreeing: each appears over the stage as a short banner and links to its evidence. |
-| **Activity** | The same events as a running audit trail beside the ticket list. |
-| **Policy lines** | The manager can move the three lines (declare without a person, ask a person, hold a ticket). In live mode they apply from the next ticket. In every mode the sheet replays the Clocked answers already taken against the lines, so you can see what a stricter or looser policy would have done before committing to it. |
-| **Deadlines** | Extract quotes any deadline the reporter mentions. The incident lists those reporters first, in their own words. |
-| **Where it is felt** | Reports per site, counted from Extract's verbatim values. |
-| **Step through** | Read one ticket at a time with the step button or the right arrow; space plays and pauses. |
-| **Records** | A second view for after the run. Every incident is a record you can drill into: Proofs (why the tickets are one incident, why it is major, where reports disagree, why this fix was sent, why the update can go out), Documents (preview, PDF, download), Tickets, Activity and Clocked calls. Held tickets are listed beside them. |
-| **Status page with receipts** | One click turns an incident into a self-contained status page. Every sentence on it is a claim Verify marked supported, footnoted with the quoted report behind it. Unsupported sentences are left out and counted. Download it or print it. |
-| **Incident brief** | A one-page brief for the review: how Decide's reading rose against the policy lines, the timeline, what was sent, what was blocked and why, and the update with each claim's verdict. |
-| **Personal replies** | A reply to each reporter, written by Fill from that person's own ticket (including their deadline) and the checked workaround, then checked by Verify against those two sources. A reply with an unsupported claim cannot be sent. Reporters with a deadline come first. |
-| **Incident report** | One click exports the incident as Markdown: timeline, every Decide reading, the disagreements, which fix was sent and which was blocked, the update with each claim's verdict, the masked reports and the Clocked usage. |
-| **Guide** | One sheet that explains every mark on the stage and every step, opened with `?`. |
+### 1. `same` does not mean "same fault"
 
-The narration, the activity trail, the what-if view and the report are built by counting and string-building over the engine's state ([`lib/story.ts`](lib/story.ts), [`lib/report.ts`](lib/report.ts)). No model is asked to explain what another model did.
+The first live probe changed the merge rule. We had expected Compare to label two reports of one fault `same`. It does not: `same` is kept for near-identical text, and two differently worded reports of one outage come back `overlapping` with `related` around 0.98. A how-to question about the same product comes back `unrelated` with `related` around 0.02, and a report that disagrees on the start time comes back `conflicting` with the two passages quoted.
 
-### What the live API taught us
+So Squall merges on `related`, and relies on Rerank's `different_case` to keep same-product, different-problem tickets from ever reaching Compare. The simulator was then changed to mirror this.
 
-The first live probe changed the merge rule. We had expected Compare to label two reports of one fault `same`. It does not: `same` is kept for near-identical text, and two differently worded reports of one outage come back `overlapping` with `related` around 0.98. A how-to question about the same product comes back `unrelated` with `related` around 0.02, and a report that disagrees on the start time comes back `conflicting` with the two passages quoted. So Squall merges on `related`, and relies on Rerank's `different_case` to keep same-product, different-problem tickets from ever reaching Compare. The simulator was then changed to mirror this.
+### 2. A summary of an incident matches worse than any one of its reports
 
-The first full evaluation changed the matcher. Squall used to describe each open incident to Rerank as one document: a title and two of its reports. That run made no wrong merge, but it split the VPN outage into two incidents of eight reports each (pairwise recall 50%). Reports quoting "the gateway is not responding" formed one, reports quoting the 809 connection error formed the other, and Rerank read the combined summary of the first as `different_case` (0.87) for a ticket from the second. Yet the same run held the evidence that they were one fault: five tickets were read by Compare as 83% to 100% related to reports in both. Two changes followed. Rerank now gets every report as its own document, because a single report was matched at 0.97 to 0.99 where the summary was skipped. And a ticket that Compare relates to reports in two groups now merges them. The numbers from that first run are kept in `eval/results-run1.json`.
+The first full evaluation changed the matcher. Squall used to describe each open incident to Rerank as one document: a title and two of its reports. That run made no wrong merge, but it split the VPN outage into two incidents of eight reports each (pairwise recall 50%). Reports quoting "the gateway is not responding" formed one, reports quoting the 809 connection error formed the other, and Rerank read the combined summary of the first as `different_case` (0.87) for a ticket from the second.
+
+Yet the same run held the evidence that they were one fault: five tickets were read by Compare as 83% to 100% related to reports in both. Two changes followed:
+
+- **Rerank now gets every report as its own document**, because a single report was matched at 0.97 to 0.99 where the summary was skipped.
+- **A ticket that Compare relates to reports in two groups now merges them.**
+
+| | First run | Second run |
+|---|---|---|
+| Grouping precision | 100% | 100% |
+| Grouping recall | 50% (VPN outage split in two) | 100% |
+
+The numbers from the first run are kept in [`eval/results-run1.json`](eval/results-run1.json).
 
 ### What is not a model call
 
@@ -160,15 +238,55 @@ The labels are in [`data/truth.ts`](data/truth.ts). The engine never imports tha
 - whether the **hostile ticket** was held and whether any **planted personal data** survived masking;
 - **credits and model time**, summed from the `X-Clocked-Credits` and `X-Clocked-Model-Ms` headers of every call.
 
-The comparison is the rule many desks run today: bucket tickets by keyword and raise an incident at five in a bucket within ten minutes. It costs nothing and reads nothing.
+The comparison is the rule many desks run today: bucket tickets by keyword and raise an incident at five in a bucket within ten minutes.
 
 ### Limits of this evaluation
+
+> [!IMPORTANT]
+> One synthetic storm is a demonstration, not a benchmark.
 
 - It is one synthetic storm written by the same person who built the engine. It shows the mechanism works on realistic awkward cases; it is not evidence about your tickets.
 - Thresholds were set by reasoning and one probe run, not tuned on a held-out set. The matcher was changed once after the first full run on this same storm (see above), so the second run is not a clean held-out test. Rezolve's advice to test calibration on your own tickets applies in full.
 - When Squall asks the incident manager, the recorded run answers yes at once. A real manager may take longer or say no; time to flag is therefore reported as the moment Squall asked.
 - The keyword baseline is a plain one. A desk with a tuned rules engine would do better than it.
 - Clocked's answers can change between model versions, so a rerun may differ from the recorded run.
+
+## The product around the storm
+
+The stage shows what is happening; these make it usable as a product.
+
+<details>
+<summary><b>Thirteen features, from narration to the status page with receipts</b></summary>
+
+<br>
+
+| Feature | What it does |
+|---|---|
+| **Narration** | The bottom console says what just happened to the latest ticket in one sentence, and shows how far it got through the six steps (Mask, Screen, Read, Shortlist, Match, Size up) with the Clocked endpoint named under each. |
+| **Moments** | An incident declared, a ticket held, a dangerous fix blocked, two reports disagreeing: each appears over the stage as a short banner and links to its evidence. |
+| **Activity** | The same events as a running audit trail beside the ticket list. |
+| **Policy lines** | The manager can move the three lines (declare without a person, ask a person, hold a ticket). In live mode they apply from the next ticket. In every mode the sheet replays the Clocked answers already taken against the lines, so you can see what a stricter or looser policy would have done before committing to it. |
+| **Deadlines** | Extract quotes any deadline the reporter mentions. The incident lists those reporters first, in their own words. |
+| **Where it is felt** | Reports per site, counted from Extract's verbatim values. |
+| **Step through** | Read one ticket at a time with the step button or the right arrow; space plays and pauses. |
+| **Records** | A second view for after the run. Every incident is a record you can drill into: Proofs (why the tickets are one incident, why it is major, where reports disagree, why this fix was sent, why the update can go out), Documents (preview, PDF, download), Tickets, Activity and Clocked calls. Held tickets are listed beside them. |
+| **Status page with receipts** | One click turns an incident into a self-contained status page. Every sentence on it is a claim Verify marked supported, footnoted with the quoted report behind it. Unsupported sentences are left out and counted. Download it or print it. |
+| **Incident brief** | A one-page brief for the review: how Decide's reading rose against the policy lines, the timeline, what was sent, what was blocked and why, and the update with each claim's verdict. |
+| **Personal replies** | A reply to each reporter, written by Fill from that person's own ticket (including their deadline) and the checked workaround, then checked by Verify against those two sources. A reply with an unsupported claim cannot be sent. Reporters with a deadline come first. |
+| **Incident report** | One click exports the incident as Markdown: timeline, every Decide reading, the disagreements, which fix was sent and which was blocked, the update with each claim's verdict, the masked reports and the Clocked usage. |
+| **Guide** | One sheet that explains every mark on the stage and every step, opened with `?`. |
+
+</details>
+
+The narration, the activity trail, the what-if view and the report are built by counting and string-building over the engine's state ([`lib/story.ts`](lib/story.ts), [`lib/report.ts`](lib/report.ts)). No model is asked to explain what another model did.
+
+### The stage
+
+The storm is the whole screen. Each incident is a hurricane drawn from sixteen thousand particles in a vertex shader. It grows with every report Compare merges into it, spins faster as Decide's probability rises, and turns from blue (watching) to amber (a person is asked) to red (major). The ink dots riding inside it are the real tickets; select one to see what each endpoint read. The ring on the floor is the probability, with a notch at each policy line. An arc flashes between two tickets when Compare merges them, and an orange line stays between two reports that disagree. Held tickets sit in a dashed red pen.
+
+The opening screen states the idea with the storm's own tickets: seven of them, worded seven ways, five drawn into one incident and two kept out, each for a stated reason. The excerpts are verbatim from `data/storm.ts` and the grouping shown is that file's ground truth, not a model result.
+
+Three glass panels float over the stage: the ticket stream and activity trail, one focused card (an incident's single number and single action, with the reasoning behind three tabs), and a console that narrates the latest ticket above a timeline with one tick per ticket. Everything on the stage is also in those panels, and motion is switched off for people who ask their system for reduced motion.
 
 ## Repository map
 
@@ -186,22 +304,24 @@ lib/api.ts           The single seam to Clocked (official clocked-sdk)
 lib/metrics.ts       Scoring, the keyword baseline, cost totals
 lib/sim.ts           Offline keyword simulator for development and tests. Not Clocked; always labelled.
 data/                The synthetic storm, its ground truth, the synthetic knowledge base
-scripts/             probe.ts and eval.ts
+scripts/             probe.ts, eval.ts and replies.ts
 eval/results.json    Output of the last live evaluation (results-run1.json: the first run, before the matcher changed)
 public/recordings/   The recorded live run the public demo replays
+docs/assets/         The images in this README
 ```
-
-### The stage
-
-The storm is the whole screen. Each incident is a hurricane drawn from sixteen thousand particles in a vertex shader. It grows with every report Compare merges into it, spins faster as Decide's probability rises, and turns from blue (watching) to amber (a person is asked) to red (major). The ink dots riding inside it are the real tickets; select one to see what each endpoint read. The ring on the floor is the probability, with a notch at each policy line. An arc flashes between two tickets when Compare merges them, and an orange line stays between two reports that disagree. Held tickets sit in a dashed red pen.
-
-The opening screen states the idea with the storm's own tickets: seven of them, worded seven ways, five drawn into one incident and two kept out, each for a stated reason. The excerpts are verbatim from `data/storm.ts` and the grouping shown is that file's ground truth, not a model result.
-
-Three glass panels float over the stage: the ticket stream and activity trail, one focused card (an incident's single number and single action, with the reasoning behind three tabs), and a console that narrates the latest ticket above a timeline with one tick per ticket. Everything on the stage is also in those panels, and motion is switched off for people who ask their system for reduced motion.
 
 ## Deploying a public demo
 
-Deploy to any Node host (Vercel works with no configuration). Without a key the site replays `public/recordings/latest.json`. To allow live runs on a public site without letting visitors spend your credits, set both `CLOCKED_API_KEY` and `SQUALL_ACCESS_CODE`; live mode then asks for the code.
+Deploy to any Node host (Vercel works with no configuration). What visitors get depends on two environment variables:
+
+| `CLOCKED_API_KEY` | `SQUALL_ACCESS_CODE` | What the site does |
+|---|---|---|
+| not set | not set | Replays `public/recordings/latest.json`. Nobody can spend credits. |
+| set | set | Opens on the recording. Live mode asks for the code. |
+| set | not set | Opens in live mode for every visitor. |
+
+> [!WARNING]
+> With a key and no access code, anyone who opens the site spends your credits. Set both, or neither.
 
 ## Data and safety
 
@@ -217,4 +337,11 @@ Deploy to any Node host (Vercel works with no configuration). Without a key the 
 - Design guidance drawn from three open skills: [impeccable](https://github.com/pbakaus/impeccable), [taste-skill](https://github.com/Leonxlnx/taste-skill) and [ui-ux-pro-max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill).
 - Started and built during the challenge window with an AI coding assistant (Claude), as the rules allow. The commit history shows what was built and when.
 
-MIT licensed.
+<div align="center">
+<br>
+
+**[See the storm](https://squall-phi.vercel.app)**
+
+<sub>MIT licensed.</sub>
+
+</div>
